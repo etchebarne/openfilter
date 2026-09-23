@@ -1,5 +1,126 @@
 # Project status — 2026-09-23
 
+## Compressor suite styling 0.1.2
+
+**Implemented:** aligned compressor styling with the existing EQ while retaining
+its revised layout. Both editors now use the same meter painter: narrow recessed
+lanes, six-pixel segmentation and green-to-gold level fill. Compressor reduction
+uses a warm downward lane and its own positive dB scale. Matched the suite
+wordmark, header/footer gradients, undo/redo icons, toolbar heights, captions,
+inset bold readouts, signed trims, menu selection marks and hover/entry states.
+The compact Lookahead label has explicit clearance from its numeric field.
+DSP, audio parameters and state schema are unchanged.
+
+**Tested:** all eight release and all eight ASan/UBSan suites passed; all four
+EQ/compressor UI/native-host suites passed again after the final spacing fix.
+Normal, compact, 2x, menu and entry compressor previews inspected, including
+sidechain views and Help. EQ normal, compact, 2x, menu and 24-band previews are
+pixel-identical to their pre-extraction renders (SHA-256 comparison) and were
+visually inspected. Dense EQ software painting measured 11.86 ms/frame mean on
+the local Ryzen 5 5600GT. Installed CLAP: 36 validator checks passed, no failures
+or warnings, eight unsupported optional checks skipped; retained seeds passed.
+No DSP measurement rerun was needed for this styling revision. Reports are in
+`reports/compressor-style-*` and `reports/eq-style-preview.txt`.
+
+Installed only `~/.clap/OpenFilterCompressor.clap`; build/installed SHA-256 match:
+`178393d67645e0baff680712a6b5ad8fb39084c73d40e1f99a42490e1bbf941d`.
+
+**Pending:** Bitwig-specific interaction/listening and the release qualification
+items below. Synthetic host tests do not complete those gates.
+
+## Compressor layout revision 0.1.1
+
+**Implemented:** reworked the arrangement after direct inspection of FabFilter's
+[official Pro-C overview](https://www.fabfilter.com/help/pro-c/using/overview).
+The workspace is now a continuous level history with an optional knee overlay,
+four dominant dials (Threshold/Ratio/Attack/Release), smaller stacked Makeup/Mix,
+adjacent Knee/Range/Lookahead/Hold sliders, narrow meters and a collapsible
+sidechain drawer. Input/Output/Bypass occupy the footer. Original EQ graphite
+materials are retained. The history and GR meter now both span 60 dB, with coral
+attenuation marking. Audio parameters, DSP and state schema are unchanged.
+
+View toggles emit no audio events; hidden sidechain controls are skipped by
+hit testing and keyboard focus. Slider tracks drag horizontally and numeric
+readouts retain exact entry. Double-clicking the exposed knee restores the
+threshold default with balanced host gestures. External source selection stays
+visible in the collapsed drawer button.
+
+**Tested:** all eight release suites passed. All eight sanitizer suites passed
+for the layout, with all four EQ/compressor UI/native-host suites rerun after
+the final knee-reset fix. CLAP validation: 36 passed, zero failures/warnings,
+eight unsupported optional checks skipped; retained seeds passed. Previews were
+inspected at normal, compact, 2x, menu and sidechain states; the EQ's normal,
+compact, 2x, menu and 24-band views were also rendered and inspected. No DSP
+measurement rerun was needed for this UI-only revision; earlier audio evidence
+continues to apply. Reports: reports/compressor-layout-*.txt.
+
+Installed only `~/.clap/OpenFilterCompressor.clap`; build/installed SHA-256 match:
+`85387284652251018a383ebdfd4ea0c6de671638b067eb8bbd0eb6363119ce40`.
+
+**Pending:** Bitwig-specific interaction/listening validation and the release
+qualification items below. Synthetic host tests do not complete those gates.
+
+## Delivered milestone: Compressor alpha 0.1.0
+
+Built and installed separately as `~/.clap/OpenFilterCompressor.clap` (plugin ID
+`org.openfilter.compressor`). EQ audio, IDs, state and installed artifact are
+unchanged. Build/installed SHA-256:
+`65247ad813abd75d8e1503c09ce3b8b4eca43654b449e9253242e24660193c45`.
+See [compressor guide](compressor.md) and [audio contract/plan](compressor-plan.md).
+
+**Implemented:** independent double-precision feed-forward DSP, mono/stereo and
+float/double buffers, Peak/RMS, quadratic knee, range, attack/release/hold,
+program-dependent auto release, stereo link, input/makeup/output, parallel mix,
+smoothed bypass and automation, global CLAP modulation, detector HP and external
+sidechain. Lookahead is 0–10 ms with constant ceil(rate × .01) latency, including
+bypass/dry. The engine uses fixed arrays; no process-time storage resizing.
+Versioned/checksummed schema 1 stores base parameters, separate from modulation.
+
+The native editor reuses the EQ's original graphite theme, vector knobs, wells,
+click tracking and X11 raster support. It provides transfer editing, six seconds
+of level/GR history, meters, exact entry, all-parameter default resets, fine drag,
+keyboard navigation, five starting points, A/B and 64-edit undo/redo. The bridge
+retains begin/value/end events under host backpressure, including editor close.
+Existing primitives are reused; no new library dependencies were introduced.
+
+**Tested locally on Linux x86-64 / AMD Ryzen 5 5600GT:**
+
+| Check | Result |
+| --- | --- |
+| Release CTest | All 8 suites passed (EQ + compressor DSP, CLAP, UI, native GUI) |
+| ASan + UBSan CTest | All 8 suites passed with leak detection enabled |
+| Independent compressor audio reference | 20 cases, six rates 44.1–192 kHz, Peak/RMS, fractional lookahead, timing, sidechain HP, auto release, hold, mix, range; max sample residual 1.06e-15 |
+| Static knee/ratio audio | 60 rendered cases; max dB error 1.43e-14 |
+| Timing and safety | Exact attack time constant, hold, delayed bypass/mix impulse alignment through 768 kHz, reset, finite-input stress, C++ allocation guards |
+| Host contract | Sample-offset events, bit-identical outputs at block sizes 1/17/64/257/1024/4096, base/modulation separation, buffered state and rejection, external SC float/double mono/stereo |
+| Native GUI | Five reopen cycles, 2x scaling, host backpressure, pending save/load, balanced gestures, hide/close during drag; real X11 test windows on DISPLAY=:0 |
+| Editor QA | Compressor normal/compact/2x/menu/entry/Help inspected; EQ normal/compact/2x/menu/24-band inspected |
+| UI interactions | Default reset for all 18 controls, exact entry/error handling, fine-drag continuity, undo/redo, A/B/copy, graph threshold editing, preset undo, state-load history reset |
+| clap-validator | Installed artifact: 36 passed, 0 failed/warnings, 8 unsupported optional checks skipped; retained regression seeds and a 60-second, two-worker fuzz run passed |
+| Aggregate engine benchmark | 480k stereo samples at 48 kHz in 0.0741 s (~0.74% of real time), lookahead + auto release + SC HP; not worst-callback latency |
+| EQ measurement regression | Existing independent EQ/Brickwall measurements passed |
+
+Reports are generated under `reports/compressor-*`; screenshots are under
+`reports/compressor-ui`. The standalone benchmark includes stimulus generation.
+The CI workflow now includes compressor audio measurements and CLAP validation;
+these changes have not yet run remotely.
+
+**Measured limitations and pending work:** this is a usable first compressor
+build, not a completed professional release qualification or a Pro-C clone.
+997 Hz steady-sine THD+N is -96.2 dB at 48 kHz with default time controls,
+unlinked Peak detection and about 9 dB reduction. At 55 Hz it is -51.5 dB;
+0.1 ms attack / 10 ms release raises it to -28.3 dB. Short timing creates audible
+bass modulation distortion. These are stated stimuli/settings, not blanket
+sound-quality claims. No oversampling/alias suppression, saturation/analog
+matching, automatic makeup, M/S, zero-latency mode or proprietary style matching
+is implemented. Sidechain listen, user preset-file browsing and full screen-reader
+accessibility are also pending. Dynamic lookahead automation changes detector
+sampling and needs matched-level listening alongside timing/ratio automation.
+Bitwig scan/playback, external routing, recording, duplicate/save/reopen/export,
+long-session stability, multi-instance callback profiling and level-matched
+vocals/drums/bass/mix listening remain explicit manual gates. Native test-host
+success does not mark Bitwig validation complete.
+
 ## Delivered milestone: EQ editor alpha 0.3.3
 
 The native CLAP EQ now has a functional Linux editor. Build output is

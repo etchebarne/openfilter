@@ -76,3 +76,14 @@ The normalized mathematical pole/zero data in Brickwall.hpp is generated with
 SciPy's ellipap (development tool, BSD-3-Clause). No SciPy implementation code
 is included in the plugin. tools/design_brickwall.py reproduces the values;
 docs/research.md links the design and independent measurement references.
+
+## Compressor research
+
+The original feed-forward compressor uses the standard quadratic soft-knee
+characteristic and dB envelope concepts discussed in Giannoulis, Massberg and
+Reiss, "Digital Dynamic Range Compressor Design—A Tutorial and Analysis",
+JAES 60(6), 2012. Research reference:
+https://eecs.qmul.ac.uk/~josh/documents/2012/GiannoulisMassbergReiss-dynamicrangecompression-JAES2012.pdf
+No third-party compressor source code is included. FabFilter Pro-C documentation
+informed workflow research only; no FabFilter code, graphics or algorithms were
+copied. See docs/compressor-plan.md for the reference links.

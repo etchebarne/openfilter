@@ -1,13 +1,21 @@
 # OpenFilter
 
-An open-source suite of CLAP audio effects, starting with a parametric equalizer.
+An open-source suite of CLAP audio effects with a parametric EQ and compressor.
 First target: Linux and Bitwig Studio. C++20 / CMake, with independent DSP and a
 shared native CLAP integration foundation.
 
-Planned effects: EQ, compressor, limiter, reverb, multiband compressor, de-esser,
+Next effects: limiter, reverb, multiband compressor, de-esser,
 gate/expander, and saturator/distortion.
 
-Status: **EQ editor alpha (0.3.3)**. The plugin includes a resizable graphical
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**.
+The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
+hold, auto release, stereo linking, internal/external sidechain with detector HP,
+0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
+It shares the EQ’s native UI materials, exact entry, A/B and undo workflows.
+Build output: `build/release/plugins/OpenFilterCompressor.clap`. Install only the
+compressor with `bash tools/install-compressor-local.sh`.
+
+**EQ:** The plugin includes a resizable graphical
 editor with draggable bands, exact value entry, a pre/post spectrum analyzer,
 stereo meters, A/B comparison and undo/redo. Graphite surfaces, raised
 dials, spacious contextual controls and separate meter scales define the shared UI.
@@ -41,6 +49,8 @@ process or Bitwig after replacing an already loaded binary. See the
 [editor guide](docs/editor.md) for controls and display conventions. The [development guide](docs/development.md) covers toolchain
 requirements, validation, installation, and the Bitwig smoke test.
 
+- [Compressor guide and validation boundaries](docs/compressor.md)
+- [Compressor audio contract and plan](docs/compressor-plan.md)
 - [Suite UI and interaction conventions](docs/ui-conventions.md)
 - [Development workflow](docs/development.md) and [agent rules](AGENTS.md)
 - [Current status and measured limitations](docs/status.md)

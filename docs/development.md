@@ -2,7 +2,7 @@
 
 ## Scope and source organization
 
-The current milestone is a native CLAP EQ alpha with a custom Linux editor.
+The suite includes native CLAP EQ and compressor alphas with custom Linux editors.
 See status.md for tested capabilities and outstanding work. See eq-plan.md for
 the intended first release. Audio quality claims require measurements and
 listening validation; interface design alone does not establish sound quality.
@@ -132,3 +132,23 @@ Use a new scratch Bitwig project for verification:
 
 Record the Bitwig version and exact results. Synthetic-host or scanner success
 alone must not be reported as a completed Bitwig listening/recall test.
+
+
+## Compressor development
+
+`plugins/compressor` builds independently as `OpenFilterCompressor.clap`. Its
+engine has no CLAP/UI dependency. It reuses the proven parameter descriptors,
+sample ramps, SPSC/triple buffers, stream utilities and native drawing materials.
+Its own 100 Hz meter tap transfers peak history without FFTs or allocation on the
+audio thread. See compressor-plan.md for permanent parameter IDs and schema 1.
+
+CTest includes four compressor suites alongside the four EQ suites. Run
+`tools/measure_compressor.py` and `tools/check-clap.sh
+build/release/plugins/OpenFilterCompressor.clap` after relevant changes, as well
+as the existing suite checks. `compressor_editor_preview` renders normal,
+compact, 2x, menu, numeric-entry and Help views under reports/compressor-ui.
+`compressor_render --benchmark` reports aggregate engine throughput. These tools
+are not a substitute for the Bitwig checklist in compressor.md.
+
+Use `bash tools/install-compressor-local.sh` to install only the compressor.
+The original `tools/install-local.sh` remains the EQ-only installer.

@@ -92,6 +92,17 @@ no bitmap assets, blur buffers, new dependencies, or decorative animation.
 Paint work stays on the main thread. Measure dense-band paint cost when changing
 shared materials, and inspect them at normal and 2× scale.
 
+## Meter styling
+
+Reuse `meterBar` from `libs/ui/include/openfilter/ui/Meters.hpp` for meter lanes.
+The EQ and compressor share narrow recessed wells, six-pixel segmentation and
+the green-to-gold level gradient. Keep peak readouts above the lanes and dBFS
+labels below. Gain reduction uses the same material with a warm fill growing
+downward and a separate positive dB scale; it is not a signal level. Meter
+ballistics remain the responsibility of each effect. Match the suite wordmark,
+header/footer gradients, toolbar icons and inset bold numeric readouts as well
+as the rotary control material.
+
 ## Verification
 
 Test parameter resets, undo, exact entry, menu/toggle resets and native host

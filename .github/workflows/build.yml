@@ -25,7 +25,9 @@ jobs:
         if: matrix.preset == 'release'
         run: |
           .venv/bin/python tools/measure_eq.py
+          .venv/bin/python tools/measure_compressor.py
           bash tools/build-validator.sh
           bash tools/check-clap.sh
+          bash tools/check-clap.sh build/release/plugins/OpenFilterCompressor.clap
       - name: Check formatting
         run: git ls-files '*.cpp' '*.hpp' | xargs .venv/bin/clang-format --dry-run --Werror

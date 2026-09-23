@@ -1,7 +1,7 @@
 # Architecture and implementation direction
 
 Research date: 2026-09-22. Confirmed first platform and host: Linux / Bitwig.
-The native CLAP/DSP foundation is now implemented. See status.md and
+The native CLAP/DSP foundation is now implemented for EQ and compressor. See status.md and
 development.md for current evidence and workflow. The native editor is implemented;
 see editor.md for interaction, threading, and display contracts.
 
@@ -106,3 +106,15 @@ compressor, saturator, limiter, reverb. This is a reuse-based proposal, not a fi
 commitment. Dynamics can share detectors and envelopes; multiband effects need
 verified crossovers; saturation and limiting need anti-aliasing and lookahead
 infrastructure. Reverb remains a substantial independent design/listening effort.
+
+
+## Compressor addition (0.1.0)
+
+The second effect lives in plugins/compressor with separate engine, editor,
+parameters, CLAP entry and artifact. The integration follows the EQ's tested
+ownership model and shares its small concurrency/stream and drawing primitives.
+DSP uses fixed rings for the maximum 10 ms lookahead at supported rates; the
+host-reported delay is constant during activation, including bypass. Its meter
+tap is a bounded SPSC queue of 10 ms peak/reduction frames, consumed on the main
+thread. It introduces no dependencies and changes no EQ parameter or sound.
+See compressor-plan.md for equations, state and validation contracts.

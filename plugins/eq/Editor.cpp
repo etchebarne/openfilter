@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <numbers>
+#include <openfilter/ui/Meters.hpp>
 #include <openfilter/ui/Theme.hpp>
 #include <openfilter/ui/X11Raster.hpp>
 #include <pugl/stub.h>
@@ -1301,21 +1302,9 @@ void Editor::drawMeters(cairo_t *c) {
              group == 1 && model_.clipped ? hex(0xef8c76) : muted, false, 1);
         for (unsigned channel = 0; channel < 2; ++channel) {
             const double bx = x + channel * 8;
-            theme::well(c, {bx - .5, top - 1, 6, bottom - top + 2}, 2);
             const double level =
                 std::clamp((db(model_.peaks[2 * group + channel]) + 60) / 60, 0., 1.);
-            const double levelY = bottom - level * (bottom - top);
-            auto *gradient = cairo_pattern_create_linear(0, bottom, 0, top);
-            theme::stop(gradient, 0, hex(0x6ba783));
-            theme::stop(gradient, .75, hex(0xc1c479));
-            theme::stop(gradient, 1, accent);
-            cairo_set_source(c, gradient);
-            cairo_rectangle(c, bx, levelY, 5, bottom - levelY);
-            cairo_fill(c);
-            cairo_pattern_destroy(gradient);
-            // Fine segmentation improves level reading without changing peak ballistics.
-            for (double y = bottom - 5; y > levelY; y -= 6)
-                line(c, bx, y, bx + 5, y, bg.alpha(.7), 1);
+            meterBar(c, {bx, top, 5, bottom - top}, level);
         }
     }
     for (int level = 0; level >= -60; level -= 12) {
