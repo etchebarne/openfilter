@@ -1,0 +1,8 @@
+# clap-validator b2f1d9b79b1d264a5747f46707d72b1aa40a02ef
+# Host-precision subnormal input/output regressions
+14027071025449712955
+6969465811034252370
+15074136072053660140
+# Coherent save during concurrent processing (old bounded-retry snapshot failed)
+16330218476416435723
+12509364105761687460

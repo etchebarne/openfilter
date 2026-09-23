@@ -1,0 +1,30 @@
+name: Linux CLAP
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        preset: [release, sanitize]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Install native UI dependencies
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libx11-dev libfontconfig1-dev fonts-noto-core xvfb
+      - name: Install project tools
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install -r tools/requirements.txt
+      - name: Configure, build, and test
+        run: |
+          export PATH="$PWD/.venv/bin:$PATH"
+          cmake --preset ${{ matrix.preset }}
+          cmake --build --preset ${{ matrix.preset }} -j 2
+          xvfb-run -a ctest --preset ${{ matrix.preset }}
+      - name: Measure audio and validate CLAP
+        if: matrix.preset == 'release'
+        run: |
+          .venv/bin/python tools/measure_eq.py
+          bash tools/build-validator.sh
+          bash tools/check-clap.sh
+      - name: Check formatting
+        run: git ls-files '*.cpp' '*.hpp' | xargs .venv/bin/clang-format --dry-run --Werror

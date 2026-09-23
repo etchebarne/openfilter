@@ -1,0 +1,108 @@
+# Architecture and implementation direction
+
+Research date: 2026-09-22. Confirmed first platform and host: Linux / Bitwig.
+The native CLAP/DSP foundation is now implemented. See status.md and
+development.md for current evidence and workflow. The native editor is implemented;
+see editor.md for interaction, threading, and display contracts.
+
+## Recommended stack
+
+Use C++20, CMake, and the official CLAP headers with `clap-helpers`. Build one
+separate `.clap` artifact per effect. The suite shares source libraries, without
+requiring a separately installed OpenFilter runtime.
+
+A native CLAP integration gives direct ownership of timestamped parameter events,
+the distinction between base values and modulation, state, ports, and lifecycle.
+The cost is that we must implement and test that integration ourselves. Keep it
+small and shared; do not build a general-purpose plugin framework.
+
+Use plain C++ for DSP and parameter definitions. DSP tests and measurement tools
+must run without a GUI, Bitwig, or a plugin wrapper. Python/NumPy/SciPy are suitable
+for independent reference measurements, not the audio processing path.
+
+The editor uses Pugl (ISC) for native window embedding and Cairo for vector
+rasterization. The initial backend is embedded X11, driven by the host's CLAP
+timer support at roughly 30 Hz. Drawing/FFT run on the main thread. This replaces
+the initial JUCE recommendation after implementing and testing the smaller Pugl
+integration. Shared UI primitives live in `libs/ui`; EQ-specific layout and
+transfer-response plotting remain in `plugins/eq`. `docs/ui-conventions.md`
+defines suite-wide behavior: double-click resets descriptor defaults, with
+separate exact-entry actions. Shared theme and click handling live in `libs/ui`.
+
+This choice keeps our source MIT licensed and avoids adopting a second plugin
+wrapper. Cairo/X11 are system dynamic libraries. The tradeoff is that keyboard
+navigation and accessibility must be implemented explicitly; full screen-reader
+support and other platforms are not yet provided. Dependencies and their terms
+are recorded in THIRD_PARTY_NOTICES.md.
+
+## Alternatives considered
+
+| Approach | Advantage | Reason not to select it initially |
+| --- | --- | --- |
+| JUCE AudioProcessor + clap-juce-extensions | Established path with existing users and extensive framework facilities | Adds an abstraction between our CLAP events and DSP; the adapter is unofficial and its documented heading covers JUCE 6–8, whereas current JUCE master references 9. Pin and verify compatibility if choosing this route. |
+| DPF with DGL | C++ framework, CLAP output, permissive ISC framework license | Worth a prototype if permissive licensing is important; verify event/modulation coverage and custom-editor requirements first. |
+| Rust plugin framework | Attractive language safety and viable CLAP ecosystem | C++ is the recommendation for this project's DSP and native GUI ecosystem; Rust is not inherently lower quality. |
+| Native CLAP + helpers | Direct format control and independent DSP | Selected; requires more explicit lifecycle, threading, and GUI integration work. |
+
+Framework choice does not establish audio quality. Filter design, automation
+behavior, numerical implementation, and measurement determine that.
+
+## Proposed layout
+
+```text
+openfilter/
+  CMakeLists.txt
+  CMakePresets.json
+  cmake/                     # compiler options, pinned dependencies, packaging
+  libs/
+    dsp/                     # filters, smoothers, gain, metering; no GUI or CLAP
+    parameters/              # stable IDs, ranges, units, parameter mappings
+    plugin/                  # shared CLAP lifecycle, event and state support
+    ui/                      # shared controls, scales, plots, themes
+  plugins/
+    eq/                      # EQ engine composition, parameters, entry, editor
+    compressor/              # create when work starts
+    limiter/
+    reverb/
+    multiband/
+    deesser/
+    gate/
+    distortion/
+  tests/                     # DSP, state, host-contract and regression tests
+  tools/                     # offline render, measurement, benchmark utilities
+  docs/
+```
+
+Create shared pieces as the EQ needs them. Extract additional abstractions when
+another effect demonstrates the need. Avoid speculative dynamics/reverb code.
+
+Dependency direction: plugin composes shared libraries; DSP depends on neither
+CLAP nor UI; UI reads snapshots and sends parameter gestures through the shared
+parameter bridge. UI rendering and FFT work never run in the audio callback.
+
+## Audio and host contracts
+
+- Preallocate during activation. No locks, allocation/deallocation, file access,
+  logging, or GUI calls in processing. Bound queues and handle overflow explicitly.
+- Apply events at their sample offsets. Keep host base values and modulation
+  separate; ending modulation restores the underlying value. Smooth deliberately
+  without silently converting every event to a block-boundary update.
+- Use double-precision filter coefficients and state initially, supporting float
+  host buffers and testing double buffers if advertised. Precision helps numerical
+  robustness; it is not a substitute for a sound filter design.
+- Reserve fixed band slots and permanent parameter IDs. Adding, deleting, or
+  visually rearranging bands must not renumber automation targets.
+- Serialize versioned base state, not transient modulation or live filter history.
+  Validate incoming data and publish coherent state changes to the audio thread.
+- Handle reset, bypass, reactivation, sample-rate changes, in-place buffers, quiet
+  tails, and offline rendering deliberately. Report latency and tails accurately.
+- Pin dependencies to immutable revisions and retain notices. Keep clean builds
+  reproducible; enable only CLAP product targets.
+
+## Later suite development
+
+Recommended sequence after the EQ: compressor, gate, de-esser, multiband
+compressor, saturator, limiter, reverb. This is a reuse-based proposal, not a fixed
+commitment. Dynamics can share detectors and envelopes; multiband effects need
+verified crossovers; saturation and limiting need anti-aliasing and lookahead
+infrastructure. Reverb remains a substantial independent design/listening effort.
