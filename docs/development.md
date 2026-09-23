@@ -72,7 +72,10 @@ use their own X11 window and do not touch DAW projects. Without `DISPLAY`, use
 `xvfb-run -a ctest --preset release` (and the sanitizer equivalent); otherwise
 the native GUI test is explicitly skipped. The GUI test tears down process-wide
 Cairo/Fontconfig caches only after all plugin instances have been destroyed.
-Never perform global graphics-cache cleanup from a plugin instance.
+Never perform global graphics-cache cleanup from a plugin instance. The CLAP
+contract host links Cairo as a process-lifetime dependency too: Ubuntu 24.04
+reports graphics initialization leaks on a bare Cairo dlopen/dlclose cycle,
+even without a plugin. Both test hosts keep leak detection enabled.
 
 ## Change sequence
 

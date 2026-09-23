@@ -4,6 +4,7 @@ jobs:
   verify:
     runs-on: ubuntu-24.04
     strategy:
+      fail-fast: false
       matrix:
         preset: [release, sanitize]
     steps:

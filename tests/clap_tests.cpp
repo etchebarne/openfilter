@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <atomic>
 #include <bit>
+#include <cairo.h>
 #include <clap/clap.h>
 #include <cstdlib>
 #include <cstring>
@@ -433,6 +434,10 @@ int main(int argc, char **argv) {
         entry->deinit();
         entry->deinit();
         dlclose(library);
+        // Standalone host cleanup, never plugin teardown. Linking Cairo into the host also
+        // keeps its dependencies resident: Ubuntu's graphics initialization allocations leak when
+        // Cairo is repeatedly dlopened/dlclosed, even without any plugin code.
+        cairo_debug_reset_static_data();
         std::cout << "CLAP: metadata, sample offsets, block partition invariance, modulation, "
                      "state integrity/concurrency, mono/stereo and 32/64-bit buffers passed; no "
                      "C++ allocations in guarded callbacks\n";

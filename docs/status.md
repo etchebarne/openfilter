@@ -7,7 +7,11 @@ The native CLAP EQ now has a functional Linux editor. Build output is
 `~/.clap/OpenFilterEQ.clap`. The project is published from `main` to
 `github.com/etchebarne/openfilter`. The first CI run exposed a GCC 13
 range-loop copy warning in the drag regression test. The loop now uses a const
-reference. Remote results are available in
+reference. Ubuntu sanitizer testing also exposed a Cairo dependency unload leak,
+reproduced by a minimal dlopen/dlclose program without plugin code (12,384 bytes).
+The CLAP test host now retains Cairo for its process lifetime and clears its
+static caches, like the native GUI host. Leak detection remains enabled.
+Remote results are available in
 [GitHub Actions](https://github.com/etchebarne/openfilter/actions/workflows/build.yml).
 Built and installed
 SHA-256 match: `7fdb9d22161b24dddb00f976a33c49cef2c07d73d2aa2716e90b844717e2835c`.
@@ -75,7 +79,7 @@ for AddressSanitizer + UndefinedBehaviorSanitizer. No fast-math flags.
 | Check | Result |
 | --- | --- |
 | CTest, release | All four suites pass: DSP, CLAP contract, UI and native GUI host |
-| CTest, ASan/UBSan | All four suites passed on 0.3.1, including native editor leak checks; not rerun for the subsequent painter/interaction-only changes |
+| CTest, ASan/UBSan | All four suites pass in the Ubuntu 24.04 / Clang 18 CI reproduction with Xvfb, including native editor leak checks |
 | Independent audio reference | 720 cases; max normalized peak residual 4.98e-11; max finite-window response error 8.88e-7 dB vs RBJ/SciPy reference |
 | clap-validator 0.4.1, pinned revision | On 0.3.1: 36 passed, 0 failed, 0 warnings, 8 skipped (44 total); unsupported optional extensions are skipped |
 | Brickwall reference | 120 C++ impulse cases against independent SciPy elliptic SOS, six rates, both cuts, Q extremes and cutoff limits; max absolute residual 1.01e-12 |
