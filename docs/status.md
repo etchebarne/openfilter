@@ -5,7 +5,11 @@
 The native CLAP EQ now has a functional Linux editor. Build output is
 `build/release/plugins/OpenFilterEQ.clap`; local installation is
 `~/.clap/OpenFilterEQ.clap`. The project is published from `main` to
-`github.com/etchebarne/openfilter`. CI is configured; remote results are pending. Built and installed
+`github.com/etchebarne/openfilter`. The first CI run exposed a GCC 13
+range-loop copy warning in the drag regression test. The loop now uses a const
+reference. Remote results are available in
+[GitHub Actions](https://github.com/etchebarne/openfilter/actions/workflows/build.yml).
+Built and installed
 SHA-256 match: `7fdb9d22161b24dddb00f976a33c49cef2c07d73d2aa2716e90b844717e2835c`.
 
 Version 0.3.0 adds Brickwall low/high cuts: an independent 20th-order elliptic

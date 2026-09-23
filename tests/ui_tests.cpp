@@ -273,7 +273,7 @@ void interactions() {
     CHECK(editor.width() == 1800);
 }
 void panelFollowsNodeDrag() {
-    for (const auto size : {std::pair{1120u, 720u}, std::pair{900u, 600u}}) {
+    for (const auto &size : {std::pair{1120u, 720u}, std::pair{900u, 600u}}) {
         eq::EditorState state;
         state.values[eq::index(0, eq::Enabled)] = 1;
         state.effective = state.values;
