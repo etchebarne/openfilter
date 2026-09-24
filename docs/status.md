@@ -1,5 +1,101 @@
 # Project status — 2026-09-24
 
+
+## Gate visualizer clarity revision
+
+**Implemented:** replaced the overlapping input/output/GR traces with two filled
+signal silhouettes: dim gray input and brighter slate output, fading toward the
+baseline and older history. The white transfer curve has stronger contrast and
+simple threshold crosshairs. Removed the vertical grid, unity diagonal and
+secondary hysteresis guide. GR remains on its dedicated meter. Curve-hidden
+mode labels time explicitly. The painter uses the existing actual, latency-aligned
+peak telemetry; DSP, IDs, state and control gestures are unchanged. The preview
+now uses irregular percussive audio with noisy decays to expose opening and
+closing behavior.
+
+**Tested:** all 24 release CTest suites passed. All four gate ASan/UBSan suites
+and EQ UI/native-host sanitizer suites passed (six total), with DISPLAY=:0 and
+no skipped native tests. Inspected gate normal/compact/2x/menu/collapsed views
+and EQ normal/compact/2x/menu/24-band renders. Formatting passed. No DSP
+measurement rerun was necessary for this painter-only revision. Installed-gate
+CLAP validation: 36 passed, no failures or warnings, eight unsupported optional
+checks skipped; all five retained fuzz seeds passed. Reports: `reports/gate-visualizer-*`.
+
+Installed only `/home/martin/.clap/OpenFilterGate.clap`; build/installed SHA-256:
+`ae4c315192e32d930f0a272bce81e730f942ecbda08d2cdf82ab044c301528c2`.
+
+**Pending:** Bitwig-specific visual confirmation and the existing audio/listening
+qualification gates. No DAW project was modified.
+
+
+## Gate / expander first working alpha — 0.1.0
+
+**Implemented:** independent `plugins/gate` DSP/editor/CLAP targets and
+`OpenFilterGate.clap`, plugin ID `org.openfilter.gate`, 23 permanent parameters,
+checksummed schema 1 (`OFGTSTAT`). Downward expansion with ratio/knee/range,
+opening attack, closing release, exact sample hold, hysteresis, Peak/RMS,
+louder-channel stereo linking, internal/external detector HP/LP and audition.
+Fixed ceil(rate × .01) latency includes dry and bypass; variable lookahead is
+0–10 ms. Input trim travels with delayed audio; wet/dry gain, balance, parallel
+mix and output trim are available. Fixed storage, per-sample ramps, independent
+base/modulation and bounded state/gesture queues follow the suite contract.
+
+The native editor follows the supplied Pro-G reference arrangement: large left
+Threshold, lower Ratio/Range, central transfer/history/meters, right timing
+controls and a collapsible lower Expert / sidechain section. It uses original
+suite graphite materials and the approved G wordmark. Input/output histories
+are latency aligned. Transfer dragging, readout entry, all-parameter default
+resets, fine dragging, A/B, undo and five starting points are implemented.
+Audition/external source remain indicated when Expert is collapsed.
+See [guide](gate.md) and [audio contract](gate-plan.md).
+
+**Tested:** all 24 release CTest suites and all 24 ASan/UBSan suites passed;
+the four gate suites passed again after final telemetry/host/UI adjustments.
+Tests cover real audio, allocation guards, latency/unity across 1–768 kHz,
+opening/closing time constants, exact hold, hysteresis, stereo linking, range,
+filtered sidechain, audition alignment, wet/dry balance, finite extremes/reset,
+mono/stereo float/double, malformed/queued state, modulation and bit-identical
+sample-event partitions of 1/17/64/257/1024/4096 frames. Native GUI tests ran on
+DISPLAY=:0, with reopening/scaling, host automation resets, save/load of pending
+UI values, host event refusal/retry and close during gestures. No GUI test was
+skipped; Xvfb was unnecessary because an X11 display was available.
+
+Independent Python/SciPy measurements: 23 actual-audio reference cases across
+44.1–192 kHz, maximum sample residual 1.12e-15; 60 static knee/ratio cases,
+maximum error 7.11e-15 dB. Open-gate delayed audio residual was 5.56e-17.
+Normal/compact/2x/menu/entry/sidechain-menu/collapsed/Help previews inspected;
+EQ normal/compact/2x/menu/24-band views also rendered and inspected. Formatting,
+Python compilation and installer shell syntax checks passed. CI now includes
+gate measurements and validation; the updated workflow has not run remotely.
+
+Installed only `/home/martin/.clap/OpenFilterGate.clap`. Final installed artifact:
+CLAP validator 36 passed, 0 failures/warnings, 8 unsupported optional checks
+skipped; all five retained fuzz seeds passed. A filter-text round-trip warning
+found by randomized fuzzing was fixed and covered by an endpoint regression.
+The final installed binary passed a 30-second, two-worker fuzz run without warnings.
+Build/installed SHA-256 match:
+`51897a18416a752b45c22e3644ba78fc14171bc8d04c60a5c426c0a133c74ef8`.
+Aggregate engine benchmark: ten seconds of 48 kHz stereo processed in 0.060 s
+(~0.60% of real time), including stimulus generation. This is not a worst callback
+or multi-instance CPU guarantee. Reports live under `reports/gate-*`.
+
+**Measured limitations / pending:** this is a working, measured alpha, not a
+professionally qualified release or proprietary Pro-G style emulation.
+A continuously expanding sine (threshold -3 dB, ratio 4, knee 6 dB, unlinked,
+hold/hysteresis zero) measured THD+N of -77.3 dB at 997 Hz and -33.2 dB at 55 Hz
+with 1 ms attack / 150 ms release; 0 ms attack / 1 ms release measured -34.7 dB
+and -9.8 dB respectively. These deliberately partially closed/fast settings
+expose modulation distortion, not open-gate noise. Musical matched-level
+vocals/drums/bass and transient/tail listening remain essential.
+
+Bitwig scan/playback, external routing, recorded automation/modulation,
+duplicate/save/reopen/export, prolonged stability and worst callback profiling
+remain unverified. No DAW project was modified. Oversampling, M/S, MIDI trigger,
+zero-latency mode, proprietary style matching and full accessibility are pending.
+Tail reporting is conservatively infinite for filtered audition; silence-based
+suspension remains pending. Existing effects' DSP, parameters and state are
+unchanged; no other installed plugin artifact was replaced.
+
 ## De-esser detection-band spectrum
 
 **Implemented:** live frequency energy inside the detection-band selector,

@@ -184,3 +184,15 @@ Allround uses absolute filtered RMS. Mode changes ramp without new allocations.
 The native editor reuses suite materials and its approved DS artwork. State and
 host/UI ownership follow the compressor's tested queue/snapshot model. See
 deesser-plan.md for equations and the minimum-phase/linear-phase distinction.
+
+
+## Gate addition (0.1.0)
+
+The sixth effect lives under `plugins/gate`. It owns independent downward
+expansion, hysteresis/hold, stereo detector linking and latency-aligned program /
+sidechain rings. Peak/RMS, detector HP/LP, sidechain audition and parallel wet/dry
+balance use fixed storage. CLAP state/event/UI ownership follows the tested
+compressor adapter; existing ramp, queue, snapshot, stream and drawing primitives
+are reused. The reference-inspired control arrangement uses original suite
+materials and the approved G artwork. See gate-plan.md for stable IDs, schema 1,
+equations, finite rate limits and the qualification boundary.

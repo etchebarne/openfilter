@@ -1,13 +1,12 @@
 # OpenFilter
 
-An open-source suite of CLAP audio effects with a parametric EQ, compressor, limiter, reverb, and de-esser.
+An open-source suite of CLAP audio effects with a parametric EQ, compressor, limiter, reverb, de-esser, and gate/expander.
 First target: Linux and Bitwig Studio. C++20 / CMake, with independent DSP and a
 shared native CLAP integration foundation.
 
-Next effects: multiband compressor,
-gate/expander, and saturator/distortion.
+Next effects: multiband compressor and saturator/distortion.
 
-Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, and **De-Esser alpha (0.1.0)**.
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, **De-Esser alpha (0.1.0)**, and **Gate alpha (0.1.0)**.
 The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
 hold, auto release, stereo linking, internal/external sidechain with detector HP,
 0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
@@ -42,6 +41,16 @@ editor uses suite controls, A/B, undo and exact entry. See the
 [de-esser guide and qualification limits](docs/deesser.md).
 Build output: `build/release/plugins/OpenFilterDeesser.clap`. Install only this
 effect with `bash tools/install-deesser-local.sh`.
+
+**Gate alpha (0.1.0):** A separate downward gate/expander with ratio/knee/range,
+opening attack, closing release, hold/hysteresis, Peak/RMS detection, linked
+stereo, filtered internal/external sidechain and audition. Adds 0–10 ms lookahead
+with fixed 10 ms latency, parallel mix and wet/dry gain/balance. The native
+editor follows the supplied Pro-G control arrangement using the suite's own
+materials and G wordmark. See the [gate guide](docs/gate.md) and
+[audio contract](docs/gate-plan.md). Bitwig and listening qualification are pending.
+Build output: `build/release/plugins/OpenFilterGate.clap`. Install only this
+effect with `bash tools/install-gate-local.sh`.
 
 **EQ:** The plugin includes a resizable graphical
 editor with draggable bands, exact value entry, a pre/post spectrum analyzer,

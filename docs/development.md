@@ -220,3 +220,16 @@ under reports/deesser-ui. Re-render EQ including the 24-band view after shared
 branding changes. `deesser_render --benchmark` reports aggregate throughput.
 `tools/install-deesser-local.sh` installs only the de-esser. Listening and Bitwig
 qualification remain distinct from synthetic-host checks.
+
+
+## Gate development
+
+`plugins/gate` builds `OpenFilterGate.clap` with separate engine/editor targets.
+See gate-plan.md for timing, hysteresis, filter, balance and state semantics.
+Run CTest, `.venv/bin/python tools/measure_gate.py`, and
+`bash tools/check-clap.sh build/release/plugins/OpenFilterGate.clap`.
+The sanitizer preset includes its four suites. `gate_editor_preview` writes
+normal, compact, 2x, menu, entry, sidechain-menu, collapsed and Help views under
+`reports/gate-ui`. `gate_render --benchmark` measures aggregate throughput.
+`tools/install-gate-local.sh` installs only the gate. Bitwig and musical listening
+remain separate from synthetic-host validation.
