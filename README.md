@@ -52,6 +52,7 @@ requirements, validation, installation, and the Bitwig smoke test.
 - [Compressor guide and validation boundaries](docs/compressor.md)
 - [Compressor audio contract and plan](docs/compressor-plan.md)
 - [Suite UI and interaction conventions](docs/ui-conventions.md)
+- [Standalone SVG wordmarks and native UI usage](assets/branding/README.md)
 - [Development workflow](docs/development.md) and [agent rules](AGENTS.md)
 - [Current status and measured limitations](docs/status.md)
 - [Architecture and technology recommendation](docs/architecture.md)

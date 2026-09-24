@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstring>
 #include <numbers>
+#include <openfilter/ui/Brand.hpp>
 #include <openfilter/ui/Meters.hpp>
 #include <openfilter/ui/Theme.hpp>
 #include <openfilter/ui/X11Raster.hpp>
@@ -935,11 +936,7 @@ void Editor::paint(cairo_t *c, double width, double height) {
     drawGraph(c);
     theme::gradient(c, {0, 0, width, 60}, hex(0x32363a), hex(0x26292d));
     line(c, 0, 60, width, 60, hex(0x000000, .35));
-    for (int i = 0; i < 4; ++i)
-        line(c, 24 + i * 4, 30 - std::sin(i * 1.8) * 6, 24 + i * 4, 35 + std::sin(i * 1.8) * 6,
-             muted, 1.8);
-    text(c, "openfilter", 49, 37, 18, ink, true);
-    text(c, "EQ", 160, 38, 23, accent);
+    drawBrand(c, Brand::Eq, {24, 17, 228, 26});
     for (int i = 0; i < 2; ++i) {
         const auto r = headerButton(i);
         drawButton(c, r, "", false, !(i ? redo_.empty() : undo_.empty()));

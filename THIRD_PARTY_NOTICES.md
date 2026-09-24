@@ -1,5 +1,13 @@
 # Third-party notices
 
+## Wordmark typography
+
+The OpenFilter wordmark artwork derives from Unbounded (weight 600), with custom
+letter details and spacing. Copyright 2022 The Unbounded Project Authors
+(https://github.com/googlefonts/unbounded), SIL Open Font License 1.1.
+The full font notice is retained in `assets/branding/Unbounded-OFL.txt`.
+Only outlined logo artwork is included; no font software is bundled.
+
 CLAP headers (a47f6badb49d948fd009998f28309cdab78979c9) and clap-helpers
 (55a5dd5d1db9c87b32f407e387f64676d27e10b1) both use the following license:
 

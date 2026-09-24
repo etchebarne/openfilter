@@ -1,5 +1,27 @@
 # Project status — 2026-09-23
 
+## Product wordmark integration
+
+**Implemented:** exported the approved Figma lettering into nine transparent,
+outlined SVGs under `assets/branding`: the suite master plus EQ, compressor,
+limiter, reverb, multiband compressor, de-esser, gate and saturator. The existing
+EQ and compressor headers now paint the matching EQ/C logos as embedded Cairo
+vectors, with the corrected e, centered i dot and optical spacing. SVG sources,
+font attribution and the reproducible native-path generator are included.
+No runtime asset files or additional graphics dependencies are required.
+Audio, parameter IDs, interaction bounds and state schemas are unchanged.
+
+**Tested:** release build succeeded; `ui`, `gui_host`, `compressor_ui` and
+`compressor_gui_host` all passed on the available X11 display. Rendered and
+inspected normal, compact, 2x and menu views for both plugins, plus the EQ
+24-band view and compressor compact sidechain view. Previews are under
+`reports/branding`. Logos remain clear of toolbar controls at minimum width.
+No DSP measurement or CLAP validator rerun was needed for this paint-only change.
+
+**Pending:** Bitwig-specific visual confirmation. Updated binaries are built
+under `build/release/plugins`; this milestone does not replace installed plugins
+or claim Bitwig validation.
+
 ## Compressor suite styling 0.1.2
 
 **Implemented:** aligned compressor styling with the existing EQ while retaining

@@ -92,6 +92,14 @@ no bitmap assets, blur buffers, new dependencies, or decorative animation.
 Paint work stays on the main thread. Measure dense-band paint cost when changing
 shared materials, and inspect them at normal and 2× scale.
 
+## Wordmarks
+
+Use the approved outlined assets in `assets/branding` for product identity.
+The EQ and compressor headers use `ui::drawBrand` at the same visible height,
+with ivory lettering and cyan EQ / amber C accents. Preserve aspect ratio,
+optical spacing and the centered i dot; do not recreate the logo with system
+text or add an icon. Native Cairo paths are embedded from the SVG sources.
+
 ## Meter styling
 
 Reuse `meterBar` from `libs/ui/include/openfilter/ui/Meters.hpp` for meter lanes.
