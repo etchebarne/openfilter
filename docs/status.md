@@ -1,5 +1,138 @@
 # Project status — 2026-09-24
 
+## Reverb glow refinement — 0.1.1
+
+**Implemented:** reduced the tail blur's logical spread by 10% and gold-layer
+opacity by 10%, retaining the diffuse trails with a lighter appearance.
+
+**Tested:** release EQ/reverb UI and native GUI host suites pass (four suites).
+Normal, compact, 2x and menu renders inspected for both editors, including the
+EQ 24-band view. Dense reverb paint averages 20.4 ms/frame over 60 frames.
+Evidence: reports/reverb/glow-trim-*.txt. DSP/CLAP contracts are unchanged, so
+measurements and external validation were not repeated for this visual tweak.
+
+**Pending:** assessment during actual Bitwig playback. Installed the reverb
+artifact only; the existing listening/recall gates remain pending.
+
+## Reverb diffuse tail display — 0.1.1 follow-up
+
+**Implemented:** replaced thin historical spectrum lines with broad translucent
+contours and a soft gold glow. A reusable alpha mask at one third logical
+resolution receives three separable binomial blur passes on the UI thread.
+The blur keeps the same logical size at 2x host scaling. The live output, EQ
+curves, nodes and all controls stay sharp. Quiet spectra extend below the plot
+instead of creating a false glowing baseline. Audio processing, capture timing,
+parameters and state are unchanged; no dependencies were added.
+
+**Tested:** release EQ/reverb UI and native GUI host suites all pass. Reverb UI
+and GUI host suites pass with ASan/UBSan and leak detection. Sanitized preview
+renders also pass memory/undefined-behavior checks (leak detection disabled only
+for the standalone preview's process-wide graphics caches). Reverb normal,
+compact, 2x, menu and all-band views were inspected, plus EQ normal, compact,
+2x, menu and 24-band regressions. Native tests used DISPLAY=:0; Xvfb is absent.
+Dense wet-history painting averages 20.1 ms over 60 frames at 1120x720, excluding
+FFT and X11 transport; not a worst-case timing guarantee. Logs are under
+reports/reverb/glow-*.txt. DSP measurements and external CLAP validation were not
+repeated for this painter-only change; their prior results are recorded below.
+
+**Pending:** visual assessment during actual Bitwig playback. Synthetic host
+checks do not establish this. The existing listening/recall gates still apply.
+
+## Reverb editor clarity and tail display 0.1.1
+
+**Implemented:** separated dial footprints, captions and readouts with a dedicated
+Space caption below its outer ring and one central time readout. Auxiliary
+controls occupy their own row; predelay Offset appears only with sync enabled.
+The flatter control deck gives the frequency canvas more height while retaining
+the suite's graphite materials and original artwork.
+
+The analyzer now captures wet audio after Post EQ/width/ducking/gating, before
+Mix and Output trim. Gold contours retain 2.2 seconds of measured wet spectra,
+with a white live final-output trace and subtle fills. A fixed 56-slice buffer
+runs on the UI thread; painting selects at most 12 historical contours. History
+clears on hide, state load and rate changes, and ages without counting stopped
+host intervals twice. This is spectral tail history, not a display of individual
+room reflections. Parameter IDs, state schema and DSP equations are unchanged.
+
+**Tested:** all 16 release suites passed, including `ui_tests` and
+`gui_host_tests`; the four reverb suites passed again after the final history
+clock correction. All four reverb ASan/UBSan suites passed. New regressions check
+caption/dial clearance at three widths and four scales, calibrated anti-phase
+stereo analysis, bounded history, idle timing and actual mono/stereo wet-tap
+agreement independent of Mix. Native GUI tests retain gesture-backpressure and
+reopen coverage using the working X11 display (Xvfb is unavailable).
+Independent audio measurements pass. Four before/after impulse, burst and tone
+cases across 44.1/48/96 kHz, styles and EQ are bit-identical.
+
+Reverb normal, compact, 2x, menu, selected-band and empty layouts were visually
+inspected, together with the suite EQ normal/compact/2x/menu/24-band regression
+renders. The dense-history painter measured 22.7 ms/frame over 60 frames at
+1120x720; this excludes FFT/X11 work and is not a worst-case guarantee. Evidence:
+reports/reverb/ui-refresh-*.txt and reports/reverb-ui.
+CLAP validator: 36 passed, 0 failed, 0 warnings and 8 optional checks skipped;
+all five retained fuzz seeds passed. Installed only OpenFilterReverb.clap to
+~/.clap and verified its SHA-256 matches the release artifact.
+
+**Pending:** interactive Bitwig listening/automation/recall and worst-callback
+profiling remain the manual gates described below.
+
+## Reverb first working alpha 0.1.0
+
+**Implemented:** independent `OpenFilterReverb.clap`, plugin ID
+`org.openfilter.reverb`, schema 1 with 80 stable parameters. Original eight-line
+Hadamard feedback-delay network, four input allpass stages per channel, modulated
+reads, six feedback-loss EQ bands and six stereo wet post-EQ bands. Space, Decay
+Rate, Modern/Vintage/Plate voicings, Predelay with host sync/offset, Character,
+Thickness, Distance, Brightness, Width, Ducking, Auto Gate/hold, Freeze, Mix/lock,
+input/output and bypass are functional. Fixed storage supports 1–768 kHz, with
+zero dry latency and no allocation during guarded processing/flush/reset.
+Feedback boost overlap is bounded; see [audio contract](reverb-plan.md).
+
+Native X11 editor follows the Pro-R control hierarchy with the suite's graphite
+materials and approved R artwork. Large central Space dial, dual frequency canvas,
+editable nodes and band inspector, real pre/output FFT, output meters, starting
+presets, exact entry, default resets, undo/redo and A/B. Numeric entry preserves
+unmodified host precision. Fields with no effect on the selected filter are
+disabled; cut nodes drag frequency only. Host event backpressure retains balanced
+gestures, including close during a drag. No existing plugin sound/state changes.
+
+**Tested:** all 16 release CTest suites passed; all 16 ASan/UBSan suites passed,
+followed by the four reverb suites again after final DSP/UI fixes. Tests cover
+actual dry/wet audio, rate boundaries, stereo, predelay/sync arrival, freeze
+sustain/input rejection, extreme decay overlaps, reset, mono/stereo float/double,
+sample-offset transport/parameter events, bit-identical event partitions
+1/17/64/257/1024/4096, state round-trip/corruption/queue limits, modulation/base
+separation, native embedding, five reopen cycles and rejected gesture retries.
+Xvfb is unavailable; native tests used the working X11 display with test-owned
+windows. No existing DAW project was opened or modified.
+
+Independent rendered-audio measurements pass: a 1.5-second neutral midband tail
+measured 1.489–1.493 seconds at 44.1/48/96 kHz. A 1 kHz decay band measured
+0.393 seconds at 25% and 2.876 seconds at 200%, against 1.503 seconds neutral.
+Post lowpass complex response agrees with an independent SciPy Butterworth
+reference within 1.53e-10. Output trim, mono width, sample-exact predelay shift,
+ducking and gate attenuation pass. See reports/reverb/measurements.json.
+
+Rendered/inspected reverb normal, compact, 2x, menu, entry, selected, Help and
+all-band layouts, and EQ normal/compact/2x/menu/24-band regressions. Reports are
+under reports/reverb-ui and reports/ui. Final CLAP validator: 36 passed, 0 failures, 0 warnings, 8 unsupported optional
+extensions skipped; all five retained fuzz seeds passed. Results are recorded
+under reports/reverb/clap-validator.txt. Installed only OpenFilterReverb.clap to
+~/.clap and verified its SHA-256 matches the release artifact. The initial validator rejected the
+192 kHz activation ceiling; fixed storage and boundary coverage now match the
+suite's 768 kHz limit. Five retained fuzz seeds are included in validation.
+
+**Pending:** subjective listening/voicing and automation/recall/export in a new
+Bitwig scratch project; worst-callback profiling and longer fuzz/listening runs.
+No claim of FabFilter sonic equivalence or full control parity. Decay shaping is
+an approximate loss model with shared boost limits; freeze is not perfectly
+lossless. Filter-type transitions and pitch changes during Space/predelay
+movement need listening qualification. IR import, surround, decay waterfall,
+decay-notch shaping, steep post cuts, automatic EQ gain compensation, gate tempo
+sync, full preset browser and accessibility remain future work. The host tail is
+conservatively infinite. See the [reverb guide](reverb.md).
+
+
 ## Limiter oversampling and qualification 0.3.0
 
 **Implemented:** Clean/Punch/Dense now process audio at 4× through 192 kHz host

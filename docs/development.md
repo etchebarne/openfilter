@@ -2,7 +2,7 @@
 
 ## Scope and source organization
 
-The suite includes native CLAP EQ, compressor and limiter alphas with custom Linux editors.
+The suite includes native CLAP EQ, compressor, limiter and reverb alphas with custom Linux editors.
 See status.md for tested capabilities and outstanding work. See eq-plan.md for
 the intended first release. Audio quality claims require measurements and
 listening validation; interface design alone does not establish sound quality.
@@ -182,3 +182,19 @@ process cannot certify real-time DAW scheduling.
 long reconstruction and external-meter gates. It requires the test-only system
 package libebur128 1.2.6 (`libebur128-1` on Ubuntu); no plugin linkage is added.
 `bash tools/install-limiter-local.sh` installs only the limiter artifact.
+
+
+## Reverb development
+
+`plugins/reverb` builds `OpenFilterReverb.clap` independently. Engine owns its
+fixed delay/diffusion/filter storage and has no CLAP/UI dependency. Its adapter
+reuses the proven queue/snapshot/state-stream model; the editor uses the shared
+native painter, FFT tap, interaction helpers and approved R artwork. No new
+runtime dependency is added. See reverb-plan.md and reverb.md.
+
+Run CTest, `python tools/measure_reverb.py`, and
+`bash tools/check-clap.sh build/release/plugins/OpenFilterReverb.clap`.
+`reverb_editor_preview` writes normal, compact, 2x, menu, exact-entry, selected,
+Help and all-band views to reports/reverb-ui. Also render the EQ's 24-band view
+when changing shared branding/materials. `tools/install-reverb-local.sh`
+installs only this project's reverb. Bitwig validation remains separate.

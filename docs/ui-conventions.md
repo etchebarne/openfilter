@@ -89,6 +89,9 @@ of the current gain/Q. Keep explanatory reset text in Help and the empty state.
 
 These are native Cairo vectors. Shadows use four bounded stroke layers, with
 no bitmap assets, blur buffers, new dependencies, or decorative animation.
+The reverb signal-history layer is a deliberate exception: its diffuse tail
+display uses a reusable downsampled alpha mask and a bounded blur on the UI
+thread. Controls, text, meters and editable curves remain crisp vectors.
 Paint work stays on the main thread. Measure dense-band paint cost when changing
 shared materials, and inspect them at normal and 2× scale.
 

@@ -1,7 +1,7 @@
 # Architecture and implementation direction
 
 Research date: 2026-09-22. Confirmed first platform and host: Linux / Bitwig.
-The native CLAP/DSP foundation is now implemented for EQ, compressor and limiter. See status.md and
+The native CLAP/DSP foundation is now implemented for EQ, compressor, limiter and reverb. See status.md and
 development.md for current evidence and workflow. The native editor is implemented;
 see editor.md for interaction, threading, and display contracts.
 
@@ -149,3 +149,15 @@ cascaded sparse half-band interpolation. Minimum queues bound replacement work
 with binary search. No shared DSP abstraction or new runtime dependency is added.
 Schema 2 is retained; modern sound and fixed latency change explicitly. See
 limiter-dsp.md for numerical definitions and user acceptance gates.
+
+
+## Reverb addition (0.1.0)
+
+The fourth effect owns an original eight-line Hadamard feedback-delay network,
+four stereo input allpass diffusion stages, fractional predelay and modulated
+tank reads, six loop-loss EQ bands per line and six wet post-EQ bands. Fixed
+storage covers 1–768 kHz without audio-thread allocation. There is no added dry
+latency. A conservative infinite tail supports freeze automation. Snapshot,
+state queue, gesture backpressure and native editor lifecycle follow the existing
+plugins. The shared analyzer performs FFTs only on the main thread. See
+reverb-plan.md for loss bounds, approximation limits and the schema 1 contract.

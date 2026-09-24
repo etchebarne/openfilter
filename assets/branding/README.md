@@ -33,10 +33,10 @@ not an installable modified font.
 
 ## Native plugin integration
 
-EQ, compressor and limiter use `libs/ui/include/openfilter/ui/Brand.hpp`. Their Cairo
+EQ, compressor, limiter and reverb use `libs/ui/include/openfilter/ui/Brand.hpp`. Their Cairo
 paths are generated from these SVGs and compiled into the plugins; no runtime
 file reads, SVG dependencies or bitmap scaling are used. After changing those
-three SVGs, regenerate and format the embedded paths:
+four SVGs, regenerate and format the embedded paths:
 
 ```sh
 python3 tools/generate_brand_paths.py
