@@ -1,5 +1,113 @@
 # Project status — 2026-09-24
 
+## De-esser detection-band spectrum
+
+**Implemented:** live frequency energy inside the detection-band selector,
+with green in-band energy and muted out-of-band filter rolloff. Uses the actual
+filtered internal/external detector feed and the suite's 4096-point Hann FFT.
+Audio capture uses fixed buffers only while the editor is visible; FFT and
+rendering run on the main thread. The slightly taller selector preserves its
+handles and numeric-entry workflow. Narrow peaks survive logarithmic pixel
+aggregation, the trace decays when audio stops, and frequencies above Nyquist
+remain empty. Strip energy is visible below Threshold; the waveform highlights
+still indicate applied reduction. Sound, IDs, schema and latency are unchanged.
+
+**Tested:** all 20 release CTest suites and four de-esser ASan/UBSan suites
+passed. Added coherent-tone localization/calibration, anti-phase stereo,
+coarse-pixel peak preservation, Nyquist, decay and rate-change/silence tests.
+Native GUI/audio allocation and gesture-backpressure checks passed with spectrum
+capture enabled. CLAP validator: 36 passed, 0 failures/warnings, 8 optional
+extension skips; all five retained fuzz seeds passed. Normal/compact/2x/menu/
+entry/Help previews and the EQ 24-band view were rendered and inspected; no
+visual-polish findings remained in these inspected states. Installed locally.
+
+**Pending:** Bitwig listening and full professional audio qualification remain
+unchanged. No DAW project was modified.
+
+
+## De-esser waveform visualizer correction
+
+**Implemented:** replaced the level/detector/reduction line chart with a centered
+grey signed waveform, green detector-band highlights during applied reduction,
+and a thin zero-amplitude baseline. The six-second history uses 5 ms positive
+and negative extrema from both stereo channels. Read-only telemetry aligns input
+and filtered detector audio to the delayed program. Square-root display scaling
+exposes quiet syllables without presenting waveform height as dBFS. Gain
+reduction stays on its dedicated meter. Threshold remains editable using its
+knob/readout; the waveform is read-only. DSP sound, IDs, state and latency are
+unchanged. Updated preview material exercises irregular syllables and short
+sibilant bursts; the product display always uses live audio telemetry.
+
+**Tested:** all 20 release CTest suites, all four de-esser ASan/UBSan suites,
+and the independent audio measurement script passed. Added signed-extrema,
+anti-phase stereo, highlight gating, latency-aligned telemetry and read-only
+waveform interaction regressions. Native GUI tests exercised the new analysis
+path under allocation guards and verified gesture backpressure. CLAP validator:
+36 passed, 0 failures/warnings, 8 optional-extension skips as documented below;
+all five retained fuzz seeds passed. Rendered and inspected normal, compact, 2x,
+menu, entry and Help de-esser previews plus EQ normal/compact/2x/menu/24-band
+views. No actionable visual-polish findings in the inspected states. Installed
+the updated de-esser artifact locally.
+
+**Pending:** Bitwig validation and real-vocal listening remain separate, unchanged
+qualification gates. No Bitwig project was modified.
+
+
+## De-esser first working alpha — 0.1.0
+
+**Implemented:** independent `plugins/deesser` DSP/editor/CLAP targets and
+`OpenFilterDeesser.clap`, plugin ID `org.openfilter.deesser`, 15 permanent
+parameters and schema 1 (`OFDSSTAT`). Filtered RMS detection with an original
+Vocal spectral-balance heuristic / Allround mode, bounded Threshold/Range gain
+computer, minimum-phase high-shelf Split Band / Wide Band, detector audition,
+internal/external sidechain, linking, trims, attack/release and 0–15 ms lookahead.
+Latency stays ceil(rate * 15 ms) through every mode and bypass. Fixed storage,
+per-sample ramps and separate modulation/base state follow the suite contract.
+
+The native graph-first editor has prominent Threshold/Range dials, draggable
+detection edges, live detector/reduction histories, segmented modes, meters,
+exact entry, descriptor-default resets, fine dragging, A/B, undo and starting
+points. It uses existing graphite materials and the approved DS wordmark.
+The independent installer installs only this effect to `~/.clap` by default.
+See [guide](deesser.md) and [audio contract](deesser-plan.md).
+
+**Tested:** all 20 release CTest suites and all 20 ASan/UBSan suites passed.
+The four de-esser suites include real audio, no-allocation guards, latency/unity
+across 1–768 kHz, false-trigger diagnostics, link/range, lookahead, invalid input,
+mono/stereo float/double in-place audio, state corruption/queue overflow,
+modulation/base separation, and bit-identical sample-event partitions of
+1/17/64/257/1024/4096 frames (including crossed/modulated detector edges).
+Native X11 tests passed on DISPLAY=:0 with host output-event backpressure,
+reopening, scale changes, resets and close-during-gesture. No GUI test was skipped;
+Xvfb was not needed because an X11 display was available.
+
+`measure_deesser.py` passed 24 independent SciPy transient/audition/bypass
+references across 22.05–192 kHz (maximum sample residual 2.45e-15), 15 independent
+RBJ steady-state shelf cases (error <1e-8 dB), and exact latency-aligned unity in
+both processing modes. A synthetic voiced harmonic stack averaged 0 dB reduction;
+adding high-passed noise averaged approximately 6 dB. These fixtures do not
+establish real-vocal classification or perceptual quality.
+
+`clap-validator`: 36 passed, 0 failures/warnings, 8 skipped for unimplemented
+optional preset discovery, note ports, audio-port activation and configurable
+ports; all five retained fuzz seeds passed. Normal, compact, 2x, menu, exact-entry
+and Help previews were rendered and inspected. EQ normal/compact/2x/menu/24-band
+views were also inspected after the shared brand addition. No actionable UI
+polish findings remained in these inspected states; full screen-reader access
+is not implemented. The de-esser artifact was installed locally.
+
+Aggregate 48 kHz stereo DSP probe: 10 seconds processed in approximately 0.100 s
+(~1.0% of real time) on Ryzen 5 5600GT, Fedora Linux x86_64, release build. This is
+single-process aggregate throughput, not a worst-callback or DAW-load guarantee.
+
+**Pending:** level-matched real-vocal/cymbal listening, lisping and false-positive
+assessment across voices, Bitwig scanning/playback/automation/recall/export in
+a scratch project, and worst-callback profiling. Linear-phase split processing,
+oversampling and M/S-only routing are not implemented. FabFilter is a workflow
+and quality target; proprietary detection equivalence and professional release
+qualification have not been established.
+
+
 ## Reverb sound investigation and refinement — 0.2.0
 
 **Implemented:** researched feedback-delay-network density, coloration, delay

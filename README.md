@@ -1,13 +1,13 @@
 # OpenFilter
 
-An open-source suite of CLAP audio effects with a parametric EQ, compressor, limiter, and reverb.
+An open-source suite of CLAP audio effects with a parametric EQ, compressor, limiter, reverb, and de-esser.
 First target: Linux and Bitwig Studio. C++20 / CMake, with independent DSP and a
 shared native CLAP integration foundation.
 
-Next effects: multiband compressor, de-esser,
+Next effects: multiband compressor,
 gate/expander, and saturator/distortion.
 
-Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, and **Reverb alpha (0.2.0)**.
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, and **De-Esser alpha (0.1.0)**.
 The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
 hold, auto release, stereo linking, internal/external sidechain with detector HP,
 0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
@@ -34,6 +34,14 @@ transitions; older saved sessions retain their original engine. See the
 See the [reverb guide](docs/reverb.md) and [audio contract](docs/reverb-plan.md).
 Build output: `build/release/plugins/OpenFilterReverb.clap`. Install only the
 reverb with `bash tools/install-reverb-local.sh`.
+
+**De-Esser alpha (0.1.0):** Vocal/Allround detection, adjustable detection band,
+threshold/range, wide-band and minimum-phase split-band processing, audition,
+stereo link, external sidechain and 0–15 ms lookahead. Its graph-first native
+editor uses suite controls, A/B, undo and exact entry. See the
+[de-esser guide and qualification limits](docs/deesser.md).
+Build output: `build/release/plugins/OpenFilterDeesser.clap`. Install only this
+effect with `bash tools/install-deesser-local.sh`.
 
 **EQ:** The plugin includes a resizable graphical
 editor with draggable bands, exact value entry, a pre/post spectrum analyzer,

@@ -204,3 +204,19 @@ Reverb 0.2 sound qualification additionally runs `tools/measure_reverb_quality.p
 default|dense|automated [instances]` records thread CPU and callback wall times.
 Run timing probes serially without other builds/tests. The matched listening
 pack and the limits of these diagnostics are documented in reverb-quality.md.
+
+
+## De-esser development
+
+`plugins/deesser` builds independently as `OpenFilterDeesser.clap`. Its DSP
+owns fixed audio/request/audition rings and composes the proven TPT filters;
+there is no CLAP or UI dependency. The adapter follows the suite's bounded
+snapshot/state/gesture queues. See deesser-plan.md for schema 1 and audio semantics.
+
+Run CTest, `python tools/measure_deesser.py`, and
+`bash tools/check-clap.sh build/release/plugins/OpenFilterDeesser.clap`.
+`deesser_editor_preview` writes normal, compact, 2x, menu, entry and Help views
+under reports/deesser-ui. Re-render EQ including the 24-band view after shared
+branding changes. `deesser_render --benchmark` reports aggregate throughput.
+`tools/install-deesser-local.sh` installs only the de-esser. Listening and Bitwig
+qualification remain distinct from synthetic-host checks.

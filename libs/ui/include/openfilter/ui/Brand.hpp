@@ -2,7 +2,7 @@
 #include "BrandPaths.hpp"
 
 namespace openfilter::ui {
-enum class Brand { Eq, Compressor, Limiter, Reverb };
+enum class Brand { Eq, Compressor, Limiter, Reverb, Deesser };
 
 // Outlined artwork is embedded in the binary and painted only by the UI thread.
 // Fit without distortion, left aligned and vertically centered in the header.
@@ -12,7 +12,8 @@ inline void drawBrand(cairo_t *c, Brand brand, Rect destination) {
     const auto bounds = brand == Brand::Eq           ? brand_detail::eqBounds
                         : brand == Brand::Compressor ? brand_detail::compressorBounds
                         : brand == Brand::Limiter    ? brand_detail::limiterBounds
-                                                     : brand_detail::reverbBounds;
+                        : brand == Brand::Reverb     ? brand_detail::reverbBounds
+                                                     : brand_detail::deesserBounds;
     const double scale = std::min(destination.w / bounds.w, destination.h / bounds.h);
     cairo_save(c);
     cairo_translate(c, destination.x, destination.y + (destination.h - bounds.h * scale) / 2);
@@ -24,8 +25,10 @@ inline void drawBrand(cairo_t *c, Brand brand, Rect destination) {
         brand_detail::compressor(c);
     else if (brand == Brand::Limiter)
         brand_detail::limiter(c);
-    else
+    else if (brand == Brand::Reverb)
         brand_detail::reverb(c);
+    else
+        brand_detail::deesser(c);
     cairo_restore(c);
 }
 } // namespace openfilter::ui

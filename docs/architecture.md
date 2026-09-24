@@ -172,3 +172,15 @@ shape changes. Fixed buffers and DSP remain independent of the host/UI.
 Schema 2 carries an engine revision; schema 1 sessions retain the old algorithm
 and resave as Legacy. All 80 parameter IDs and the plugin ID remain stable.
 See reverb-quality.md for research, actual-audio results and remaining gates.
+
+
+## De-esser addition (0.1.0)
+
+The fifth effect owns independent DSP, parameters, editor and CLAP entry under
+`plugins/deesser`. Detector HP/LP and a dynamic high shelf reuse the proven TPT
+SVF primitive. Fixed rings provide constant 15 ms audio latency with fractional
+request lookahead. A spectral-balance heuristic weights Vocal detection;
+Allround uses absolute filtered RMS. Mode changes ramp without new allocations.
+The native editor reuses suite materials and its approved DS artwork. State and
+host/UI ownership follow the compressor's tested queue/snapshot model. See
+deesser-plan.md for equations and the minimum-phase/linear-phase distinction.
