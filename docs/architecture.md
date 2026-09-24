@@ -1,7 +1,7 @@
 # Architecture and implementation direction
 
 Research date: 2026-09-22. Confirmed first platform and host: Linux / Bitwig.
-The native CLAP/DSP foundation is now implemented for EQ and compressor. See status.md and
+The native CLAP/DSP foundation is now implemented for EQ, compressor and limiter. See status.md and
 development.md for current evidence and workflow. The native editor is implemented;
 see editor.md for interaction, threading, and display contracts.
 
@@ -118,3 +118,34 @@ host-reported delay is constant during activation, including bypass. Its meter
 tap is a bounded SPSC queue of 10 ms peak/reduction frames, consumed on the main
 thread. It introduces no dependencies and changes no EQ parameter or sound.
 See compressor-plan.md for equations, state and validation contracts.
+
+
+## Limiter addition (0.1.0)
+
+`plugins/limiter` owns a separate sample-peak engine, parameters, editor and CLAP
+entry. Its fixed-storage sliding-minimum gain computer and moving-average
+attack run independently of the host/UI. Five-millisecond delay is constant
+through bypass and all automation; input gain travels with delayed audio.
+The CLAP adapter retains the established snapshot, queued-state and gesture
+backpressure model, with one main audio bus and no sidechain. The editor uses
+the original L wordmark and shared graphite materials. See limiter-plan.md for
+proof, measurement gates, and remaining true-peak/loudness work.
+
+## Limiter dual-stage revision (0.2.0)
+
+The limiter now retains LegacyEngine for old-state recall and uses Engine for
+independent transient and sustained envelopes, original voicings, stable-latency
+lookahead blending, and a post-gain reconstructed-peak guard. A separate final
+output detector supplies true-peak meters. All processing/storage remains owned
+by the limiter and independent of CLAP/UI. See limiter-dsp.md for the precise
+signal path, schema 2 migration and increased fixed delay.
+
+## Limiter oversampled revision (0.3.0)
+
+Engine now composes ModernEngine at 4× (through 192 kHz host rate), half-band
+resamplers, a Nyquist safety FIR and post-decimation sample/true-peak guards.
+LegacyEngine stays at the host rate with aligned padding. Peak estimation uses
+cascaded sparse half-band interpolation. Minimum queues bound replacement work
+with binary search. No shared DSP abstraction or new runtime dependency is added.
+Schema 2 is retained; modern sound and fixed latency change explicitly. See
+limiter-dsp.md for numerical definitions and user acceptance gates.

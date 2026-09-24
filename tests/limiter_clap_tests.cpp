@@ -10,6 +10,7 @@
 #include <cstring>
 #include <dlfcn.h>
 #include <iostream>
+#include <memory>
 #include <new>
 #include <openfilter/plugin/Stream.hpp>
 #include <openfilter/plugin/TripleBuffer.hpp>
@@ -83,7 +84,7 @@ struct Fixture {
     const clap_plugin_state *state;
     bool active = false;
     explicit Fixture(const clap_plugin_factory *factory)
-        : p(factory->create_plugin(factory, &host, "org.openfilter.compressor")) {
+        : p(factory->create_plugin(factory, &host, "org.openfilter.limiter")) {
         CHECK(p && p->init(p));
         params = static_cast<const clap_plugin_params *>(p->get_extension(p, CLAP_EXT_PARAMS));
         state = static_cast<const clap_plugin_state *>(p->get_extension(p, CLAP_EXT_STATE));
@@ -141,7 +142,7 @@ struct Fixture {
         return state->load(p, &s.in);
     }
 };
-using namespace openfilter::compressor;
+using namespace openfilter::limiter;
 void metadata(const clap_plugin_factory *factory) {
     Fixture f(factory);
     CHECK(f.params->count(f.p) == parameterCount);
@@ -158,35 +159,43 @@ void metadata(const clap_plugin_factory *factory) {
     }
     const auto *ports =
         static_cast<const clap_plugin_audio_ports *>(f.p->get_extension(f.p, CLAP_EXT_AUDIO_PORTS));
-    CHECK(ports->count(f.p, true) == 2 && ports->count(f.p, false) == 1);
+    CHECK(ports->count(f.p, true) == 1 && ports->count(f.p, false) == 1);
     clap_audio_port_info sc{};
-    CHECK(ports->get(f.p, 1, true, &sc));
-    CHECK(!(sc.flags & CLAP_AUDIO_PORT_IS_MAIN));
-    CHECK(sc.in_place_pair == CLAP_INVALID_ID);
+    CHECK(!ports->get(f.p, 1, true, &sc));
     const auto *latency =
         static_cast<const clap_plugin_latency *>(f.p->get_extension(f.p, CLAP_EXT_LATENCY));
     f.start(44100);
-    CHECK(latency->get(f.p) == 441);
+    CHECK(latency->get(f.p) == 884);
+    const auto *tail =
+        static_cast<const clap_plugin_tail *>(f.p->get_extension(f.p, CLAP_EXT_TAIL));
+    CHECK(tail && tail->get(f.p) == 1148);
     f.stop();
     f.start(96000);
-    CHECK(latency->get(f.p) == 960);
+    CHECK(latency->get(f.p) == 1298);
 }
 std::vector<double> automated(const clap_plugin_factory *factory, unsigned block) {
     Fixture f(factory);
     f.start();
     Events timeline;
-    timeline.add(127, Threshold, -30);
-    timeline.add(301, Attack, .2);
-    timeline.add(613, Threshold, 8, true);
-    timeline.add(799, Sidechain, 1);
-    timeline.add(999, Lookahead, 10);
-    timeline.add(1301, Mix, 40);
+    timeline.add(127, Gain, 12);
+    timeline.add(301, Release, 40);
+    timeline.add(613, Gain, 8, true);
+    timeline.add(799, StereoLink, 35);
+    timeline.add(999, Ceiling, -3);
+    timeline.add(1301, UnityGain, 1);
     timeline.add(1703, Bypass, 1);
     timeline.add(2201, Bypass, 0);
-    timeline.add(2500, Threshold, 0, true);
-    timeline.add(3007, Detector, 1);
+    timeline.add(2500, Gain, 0, true);
+    timeline.add(3007, UnityGain, 0);
     timeline.add(4001, AutoRelease, 1);
-    timeline.add(6007, Output, 6);
+    timeline.add(4203, Lookahead, .3);
+    timeline.add(4409, Attack, 4);
+    timeline.add(4701, ReleaseLink, 10);
+    timeline.add(5009, Style, Dense);
+    timeline.add(5401, TruePeak, 0);
+    timeline.add(5603, Lookahead, 2, true);
+    timeline.add(5801, TruePeak, 1);
+    timeline.add(6007, Ceiling, -.5);
     std::vector<double> output;
     for (unsigned at = 0; at < 8192; at += block) {
         unsigned n = std::min(block, 8192 - at);
@@ -215,25 +224,29 @@ std::vector<double> automated(const clap_plugin_factory *factory, unsigned block
         std::copy_n(output.begin() + src, n, canonical.begin() + 8192 + at);
         src += n;
     }
-    near(f.value(Threshold), -30);
+    near(f.value(Gain), 12);
+    near(f.value(Lookahead), .3); // Modulation never overwrites base values.
+    const auto *latency =
+        static_cast<const clap_plugin_latency *>(f.p->get_extension(f.p, CLAP_EXT_LATENCY));
+    CHECK(latency->get(f.p) == 914);
     return canonical;
 }
 void states(const clap_plugin_factory *factory) {
     Fixture f(factory);
     auto original = f.save();
     Events e;
-    e.add(0, Threshold, -32);
-    e.add(0, Sidechain, 1);
+    e.add(0, Gain, 12);
+    e.add(0, AutoRelease, 1);
     f.flush(e);
     auto changed = f.save();
     CHECK(f.load(original));
-    near(f.value(Threshold), -18);
+    near(f.value(Gain), 0);
     CHECK(f.load(changed));
-    near(f.value(Threshold), -32);
+    near(f.value(Gain), 12);
     auto bad = changed;
     bad.bytes[24] ^= 0x7f;
     CHECK(!f.load(bad));
-    near(f.value(Threshold), -32);
+    near(f.value(Gain), 12);
     for (size_t n : {0u, 8u, 16u, 100u}) {
         Stream shortState;
         shortState.bytes.assign(changed.bytes.begin(), changed.bytes.begin() + n);
@@ -241,15 +254,15 @@ void states(const clap_plugin_factory *factory) {
     }
     f.start();
     CHECK(f.load(original));
-    near(f.value(Threshold), -18);
+    near(f.value(Gain), 0);
     Events mod;
-    mod.add(0, Threshold, 12, true);
+    mod.add(0, Gain, 12, true);
     f.flush(mod);
-    near(f.value(Threshold), -18);
+    near(f.value(Gain), 0);
     auto saved = f.save();
     Fixture other(factory);
     CHECK(other.load(saved));
-    near(other.value(Threshold), -18);
+    near(other.value(Gain), 0);
     // Bounded pending loads reject overflow without partially replacing accepted state.
     unsigned accepted = 0;
     for (unsigned n = 0; n < 12; ++n)
@@ -259,7 +272,54 @@ void states(const clap_plugin_factory *factory) {
     Events empty;
     std::vector<double> l(1024, .5), r = l;
     f.process(l, r, empty);
-    near(f.value(Threshold), -32);
+    near(f.value(Gain), 12);
+}
+void migration(const clap_plugin_factory *factory) {
+    Fixture f(factory);
+    Stream old;
+    old.bytes.resize(104);
+    std::memcpy(old.bytes.data(), "OFLMSTAT", 8);
+    plugin::put32(old.bytes.data() + 8, 1);
+    plugin::put32(old.bytes.data() + 12, 7);
+    auto values = defaults();
+    values[Gain] = 6;
+    values[Style] = Legacy;
+    values[TruePeak] = 0;
+    for (unsigned i = 0; i < 7; ++i) {
+        plugin::put32(old.bytes.data() + 16 + 12 * i, i);
+        plugin::put64(old.bytes.data() + 20 + 12 * i, std::bit_cast<uint64_t>(values[i]));
+    }
+    plugin::put32(old.bytes.data() + 100, plugin::checksum(old.bytes.data(), 100));
+    CHECK(f.load(old));
+    for (unsigned i = 0; i < parameterCount; ++i)
+        near(f.value(i), values[i]);
+    auto upgraded = f.save();
+    CHECK(plugin::get32(upgraded.bytes.data() + 8) == 2);
+    CHECK(plugin::get32(upgraded.bytes.data() + 12) == parameterCount);
+    Fixture restored(factory);
+    CHECK(restored.load(upgraded));
+    near(restored.value(Style), Legacy);
+    near(restored.value(TruePeak), 0);
+    auto bad = old;
+    plugin::put32(bad.bytes.data() + 12, 0xffffffff);
+    CHECK(!f.load(bad));
+    f.start();
+    auto ref = std::make_unique<Engine>();
+    ref->prepare(48000, values);
+    for (unsigned block = 0; block < 16; ++block) {
+        std::vector<double> l(1024), r(1024), expected(1024);
+        for (unsigned n = 0; n < 1024; ++n) {
+            l[n] = .8 * std::sin((block * 1024 + n) * .071);
+            r[n] = -.3 * l[n];
+            expected[n] = l[n];
+            double other = r[n];
+            ref->sample(expected[n], other);
+        }
+        Events empty;
+        f.process(l, r, empty);
+        for (unsigned n = 0; n < 1024; ++n)
+            near(l[n], expected[n], 1e-13);
+    }
 }
 void audio(const clap_plugin_factory *factory) {
     for (bool mono : {false, true})
@@ -269,74 +329,65 @@ void audio(const clap_plugin_factory *factory) {
                 f.p->get_extension(f.p, CLAP_EXT_AUDIO_PORTS_CONFIG));
             CHECK(config->select(f.p, mono ? 1 : 0));
             Events setup;
-            setup.add(0, Sidechain, 1);
-            setup.add(0, Lookahead, 5);
-            setup.add(0, SidechainHP, 120);
+            setup.add(0, Gain, 12);
             f.flush(setup);
             f.start();
             auto v = defaults();
-            v[Sidechain] = 1;
-            v[Lookahead] = 5;
-            v[SidechainHP] = 120;
-            Engine reference;
+            v[Gain] = 12;
+            auto storage = std::make_unique<Engine>();
+            auto &reference = *storage;
             reference.prepare(48000, v);
-            std::array<double, 1024> l{}, r{}, sl{}, sr{};
-            std::array<float, 1024> lf{}, rf{}, slf{}, srf{};
-            double *main64[]{l.data(), r.data()}, *side64[]{sl.data(), sr.data()};
-            float *main32[]{lf.data(), rf.data()}, *side32[]{slf.data(), srf.data()};
-            clap_audio_buffer in[2]{
-                {floats ? main32 : nullptr, floats ? nullptr : main64, mono ? 1u : 2u, 0, 0},
-                {floats ? side32 : nullptr, floats ? nullptr : side64, mono ? 1u : 2u, 0, 0}};
+            std::array<double, 1024> l{}, r{};
+            std::array<float, 1024> lf{}, rf{};
+            double *main64[]{l.data(), r.data()};
+            float *main32[]{lf.data(), rf.data()};
+            clap_audio_buffer in[1]{
+                {floats ? main32 : nullptr, floats ? nullptr : main64, mono ? 1u : 2u, 0, 0}};
             clap_audio_buffer out = in[0];
             clap_process proc{};
             proc.frames_count = 1024;
             proc.audio_inputs = in;
             proc.audio_outputs = &out;
-            proc.audio_inputs_count = 2;
+            proc.audio_inputs_count = 1;
             proc.audio_outputs_count = 1;
             for (unsigned b = 0; b < 12; ++b) {
                 for (unsigned n = 0; n < 1024; ++n) {
                     l[n] = .3 * std::sin((n + b * 1024) * .13);
                     r[n] = -.25 * l[n];
-                    sl[n] = .8 * std::cos((n + b * 1024) * .09);
-                    sr[n] = sl[n] * .4;
                     lf[n] = l[n];
                     rf[n] = r[n];
-                    slf[n] = sl[n];
-                    srf[n] = sr[n];
                 }
                 std::array<double, 1024> el{}, er{};
                 for (unsigned n = 0; n < 1024; ++n) {
                     el[n] = floats ? lf[n] : l[n];
                     er[n] = floats ? rf[n] : r[n];
-                    reference.sample(el[n], er[n], mono, floats ? slf[n] : sl[n],
-                                     floats ? srf[n] : sr[n]);
+                    reference.sample(el[n], er[n], mono);
                 }
                 realtime = true;
                 auto status = f.p->process(f.p, &proc);
                 realtime = false;
                 CHECK(status != CLAP_PROCESS_ERROR);
                 for (unsigned n = 0; n < 1024; ++n) {
-                    near(floats ? lf[n] : l[n], el[n], floats ? 2e-8 : 1e-12);
+                    near(floats ? lf[n] : l[n], floats ? double(float(el[n])) : el[n], 1e-12);
                     if (!mono)
-                        near(floats ? rf[n] : r[n], er[n], floats ? 2e-8 : 1e-12);
+                        near(floats ? rf[n] : r[n], floats ? double(float(er[n])) : er[n], 1e-12);
                 }
             }
         }
-    // Exact event offset: output trim starts a 480-sample ramp at frame 701.
+    // Output ceiling starts its 480-sample ramp exactly at the event offset.
     Fixture f(factory);
     Events setup;
-    setup.add(0, Ratio, 1);
+    setup.add(0, Ceiling, 0);
     f.flush(setup);
     f.start();
     Events change;
-    change.add(701, Output, 6);
-    std::vector<double> l(2048, .1), r = l;
+    change.add(1701, Ceiling, -6);
+    std::vector<double> l(3000, .1), r = l;
     f.process(l, r, change);
-    for (unsigned n = 480; n < 701; ++n)
+    for (unsigned n = 1400; n < 1701; ++n)
         near(l[n], .1, 1e-15);
-    CHECK(l[701] > .1);
-    near(l[1181], .1 * std::pow(10., 6. / 20), 1e-12);
+    CHECK(l[1701] < .1);
+    near(l[2181], .1 * std::pow(10., -6. / 20), 1e-12);
 }
 int main(int argc, char **argv) {
     try {
@@ -351,6 +402,7 @@ int main(int argc, char **argv) {
         CHECK(factory && factory->get_plugin_count(factory) == 1);
         metadata(factory);
         states(factory);
+        migration(factory);
         audio(factory);
         const auto reference = automated(factory, 1);
         for (unsigned n : {17u, 64u, 257u, 1024u, 4096u})
@@ -358,8 +410,8 @@ int main(int argc, char **argv) {
         entry->deinit();
         dlclose(library);
         cairo_debug_reset_static_data();
-        std::cout << "Compressor CLAP: offsets, bit-identical partitions, mono/stereo float/double "
-                     "external SC, state, modulation and allocation guards passed\n";
+        std::cout << "Limiter CLAP: offsets, bit-identical partitions, mono/stereo float/double "
+                     "in-place, state, modulation and allocation guards passed\n";
     } catch (const std::exception &e) {
         realtime = false;
         std::cerr << e.what() << '\n';

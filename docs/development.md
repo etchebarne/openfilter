@@ -2,7 +2,7 @@
 
 ## Scope and source organization
 
-The suite includes native CLAP EQ and compressor alphas with custom Linux editors.
+The suite includes native CLAP EQ, compressor and limiter alphas with custom Linux editors.
 See status.md for tested capabilities and outstanding work. See eq-plan.md for
 the intended first release. Audio quality claims require measurements and
 listening validation; interface design alone does not establish sound quality.
@@ -152,3 +152,33 @@ are not a substitute for the Bitwig checklist in compressor.md.
 
 Use `bash tools/install-compressor-local.sh` to install only the compressor.
 The original `tools/install-local.sh` remains the EQ-only installer.
+
+
+## Limiter development
+
+`plugins/limiter` builds separately as `OpenFilterLimiter.clap`; its engine has
+no CLAP/UI dependency. It shares the tested ramps, parameter descriptors,
+concurrency/stream utilities and native materials, with effect-specific predictive
+limiting and meter history. See limiter-plan.md for the ceiling proof, stable
+IDs and the original schema 1 contract. The 0.3 engine adds audio-path oversampling,
+a Nyquist safety filter and efficient reconstructed-peak protection around the
+dual-stage gain computer. Read limiter-dsp.md for sound/latency changes and the
+schema 1 migration; current saved state remains schema 2.
+
+Run `ctest --preset release`, `python tools/measure_limiter.py`, and
+`bash tools/check-clap.sh build/release/plugins/OpenFilterLimiter.clap` after
+relevant changes. The sanitizer preset includes all four limiter suites.
+`limiter_editor_preview` writes normal, compact, 2x, menu, entry, Help and
+collapsed-panel previews to `reports/limiter-ui`.
+`limiter_render --benchmark` gives a short timing probe.
+`limiter_benchmark 120 4 48000 256` measures 120 seconds of audio through four
+instances, with automation, overload/queue stress and separate wall/thread CPU
+statistics. A fifth argument `paced` runs at actual callback cadence and counts
+late scheduler wakeups separately; `control` uses fixed arithmetic instead of
+DSP, and `ftz` enables process-local SSE flush-to-zero for diagnosis on x86.
+Run timing probes without competing builds/tests; a regular desktop
+process cannot certify real-time DAW scheduling.
+`python tools/measure_limiter_quality.py` adds transfer, high-rate convergence,
+long reconstruction and external-meter gates. It requires the test-only system
+package libebur128 1.2.6 (`libebur128-1` on Ubuntu); no plugin linkage is added.
+`bash tools/install-limiter-local.sh` installs only the limiter artifact.

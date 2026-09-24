@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: Install native UI dependencies
-        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libx11-dev libfontconfig1-dev fonts-noto-core xvfb
+        run: sudo apt-get update && sudo apt-get install -y libcairo2-dev libx11-dev libfontconfig1-dev fonts-noto-core xvfb libebur128-1
       - name: Install project tools
         run: |
           python3 -m venv .venv
@@ -20,14 +20,17 @@ jobs:
           export PATH="$PWD/.venv/bin:$PATH"
           cmake --preset ${{ matrix.preset }}
           cmake --build --preset ${{ matrix.preset }} -j 2
-          xvfb-run -a ctest --preset ${{ matrix.preset }}
+          UBSAN_OPTIONS=halt_on_error=1 xvfb-run -a ctest --preset ${{ matrix.preset }}
       - name: Measure audio and validate CLAP
         if: matrix.preset == 'release'
         run: |
           .venv/bin/python tools/measure_eq.py
           .venv/bin/python tools/measure_compressor.py
+          .venv/bin/python tools/measure_limiter.py
+          .venv/bin/python tools/measure_limiter_quality.py
           bash tools/build-validator.sh
           bash tools/check-clap.sh
           bash tools/check-clap.sh build/release/plugins/OpenFilterCompressor.clap
+          bash tools/check-clap.sh build/release/plugins/OpenFilterLimiter.clap
       - name: Check formatting
         run: git ls-files '*.cpp' '*.hpp' | xargs .venv/bin/clang-format --dry-run --Werror

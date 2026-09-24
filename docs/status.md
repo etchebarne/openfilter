@@ -1,4 +1,296 @@
-# Project status — 2026-09-23
+# Project status — 2026-09-24
+
+## Limiter oversampling and qualification 0.3.0
+
+**Implemented:** Clean/Punch/Dense now process audio at 4× through 192 kHz host
+rate, 2× through 384 kHz and native rate above that. Original sparse, symmetric
+half-band FIRs interpolate/decimate actual audio. A narrow Nyquist safety filter
+addresses the known gated-Nyquist reconstruction failure. Post-decimation sample
+and reconstructed-peak guards catch newly generated peaks; no waveform clipper
+conceals them. Legacy/True Peak off retains the old gain equations and delayed
+wire. The footer reports the processing mode at normal width.
+
+Replaced eight long direct reconstruction convolutions with efficient multistage
+8× detectors. Bounded minimum-queue tail replacement by a short linear search plus
+binary search; removed repeated coefficient/held-level calculations and unused
+averaging conversions. All histories remain warm and instance-owned. Fixed
+storage is 6,745,088 bytes. There is no audio-thread allocation, locking, logging,
+file access or GUI work.
+
+Parameter IDs/defaults/enums and state schema 2 remain stable; schema 1 still
+migrates to Legacy/True Peak off. **Modern sound intentionally changes in 0.3**,
+including on loading existing schema 2 modern-style states. Latency is now
+914 samples / 19.04 ms at 48 kHz in every mode. CLAP tail reporting includes FIR
+extent (1178 samples at 48 kHz). Output-time ceiling events retain their offsets;
+internal gain automation travels through the new pipeline. Host compensation and
+earlier timed automation need rechecking. Full definitions: [DSP contract](limiter-dsp.md).
+
+**Tested:** all 12 release CTest suites and all 12 ASan/UBSan suites pass after the
+final DSP optimization, including native UI/host tests on X11. Tests cover actual
+audio, supported-rate boundaries, overloads, stereo links, lookahead/attack,
+constant latency, FIR symmetry/DC/linearity/tail, startup Unity compensation,
+minimum-queue replacement/ring/counter wrap, allocation guards, state migration,
+exact event offsets and block partitions 1/17/64/257/1024/4096. Rendered/inspected
+limiter normal/compact/2×/menu and EQ normal/compact/2×/menu/24-band views. Formatting,
+Python syntax and whitespace checks pass. Xvfb is unavailable; the working X11
+display was used. Remote CI has not been run.
+
+Independent NumPy/SciPy full-rate FIR/convolution and batch-envelope equations
+match within 2.4e-14 over 12 cases, including 44.1–192 kHz, extreme gain, partial
+linking, Legacy, bypass, Unity and protection off. A saved 0.2 renderer nulls
+against aligned Legacy/True Peak off within 3.5e-18 on the comparison fixture.
+The 20 Hz / +6 dB-drive sine residual is −78.82 dB; the measured stationary-sine
+cases all pass the −60 dB regression gate. Numerical cancellation floors in other
+sine cases are not subjective transparency claims.
+
+The original 114 independent 32× peak stress cases pass (highest −1.234 dBFS for a
+−1 dBFS ceiling). An additional 96 cases span all four styles and 44.1/48/96/192 kHz,
+checked with four reconstruction kernels from 8193 to 65537 taps and libebur128
+1.2.6; all pass (highest across those readings −1.195 dBFS). The previous gated
+Nyquist failure passes all longer kernels. Sixty-four analytical-sine meter cases
+have errors between −0.058 and 0 dB and pass independent 64× reconstruction checks.
+The external library's short Hann detector under-reads some high-frequency
+fixtures (−0.436 dB at 0.4 Fs/44.1 kHz; up to 1.249 dB relative to ours across the
+matrix). We retained analytical/long-filter accuracy gates, documented the
+external discrepancy, and did not tune our detector to the under-read.
+
+Actual rendered impulse responses show maximum 20 Hz–20 kHz deviation below
+0.000300 dB across 44.1–768 kHz and Nyquist rejection better than 124 dB. In the
+zero-lookahead rising-carrier test, 4× processing reduces level-matched error
+against a 16× reference by 1.72–28.07 dB over seven frequencies from 1–19 kHz;
+all 4× residuals are below −60 dB. This measures total in-band convergence,
+including envelope sampling differences, not exclusively alias energy and not
+elimination of nonlinear distortion.
+
+**CPU investigation:** the final short probe used 6.85% of real time, versus
+0.2's 11.8–12.3% on the same machine (about 42% lower). Longer 64-frame tests still show occasional deadline
+misses on this machine. CPU affinity and FTZ experiments do not remove them.
+Hardware counters on slow callbacks show normal instruction counts (roughly
+1.1–1.2 million) but about 9–11 million cycles, versus 0.43–0.50 million cycles on
+ordinary callbacks. Instrumented stages slow together; no faults/context switches
+were observed in the sampled slow callbacks. This points toward execution stalls
+or resource contention, not additional algorithmic work, but does not establish
+a complete root cause. **64-sample host reliability is not qualified.**
+
+Final serial benchmark matrix (Ryzen 5 5600GT, Linux 7.2.5, ordinary desktop
+scheduling; simulated audio duration, processed faster than real time):
+
+| Rate / buffer | Instances / audio duration | Thread CPU average | Worst callback wall time | Budget | Processing overruns |
+| --- | --- | --- | --- | --- | --- |
+| 48 kHz / 256 | 1 / 180 s | 7.37% | 0.934 ms | 5.333 ms | 0 |
+| 48 kHz / 256 | 4 / 120 s | 29.89% total | 3.196 ms | 5.333 ms | 0 |
+| 96 kHz / 512 | 1 / 60 s | 14.67% | 1.506 ms | 5.333 ms | 0 |
+| 192 kHz / 1024 | 1 / 60 s | 29.61% | 2.961 ms | 5.333 ms | 0 |
+
+A separate 30-second wall-clock-paced 48 kHz / 64-frame run had zero processing
+overruns across 22,500 callbacks (maximum CPU 0.292 ms, wall 0.952 ms, budget
+1.333 ms), but six deadlines were missed because of late scheduler wakeups.
+That is evidence for DSP headroom, not a substitute for Bitwig's real-time thread
+and long-session testing. Start the user acceptance pass at 48 kHz / 256 samples,
+then evaluate smaller buffers in the actual host.
+
+Final CLAP validator: 36 passed, zero failures/warnings, eight unsupported optional
+checks skipped; all five retained fuzz seeds and a fresh 60-second two-worker fuzz
+run pass. Installed only `~/.clap/OpenFilterLimiter.clap`; build/installed SHA-256:
+`40b481db6774e0feebfe83f872b64cca125e2dcaf8f5ef97574e332d30c5faf2`.
+The prior 0.2 binary is preserved outside the scan directory at
+`reports/limiter-0.3/OpenFilterLimiter-0.2.0.clap` for exact old-version recall.
+
+Reports: `reports/limiter-0.3` contains measurement/quality JSON, CPU diagnostics,
+validation logs and a refreshed RMS-matched synthetic audition. No human listening
+pass is claimed. libebur128 is a test-only system library; the CLAP adds no runtime
+dependency. CI now includes the extra numerical quality gates.
+
+**User acceptance remaining:** Bitwig playback, automation/recall/export and
+real-material listening, as explicitly assigned to the user. See the
+[focused test handoff](limiter-testing.md). LUFS and dither remain optional future
+features. This is a candidate for that acceptance pass, not a claim of completed
+production approval, universal codec safety or formal meter certification.
+
+## Limiter advanced controls and DSP 0.2.0
+
+**Implemented:** the shallow advanced panel now contains Style, Lookahead,
+Attack, Release and separate transient/release channel linking, following the
+supplied reference's grouping with original suite controls and materials. Clean,
+Punch and Dense are original dual-stage envelope voicings. Lookahead continuously
+blends safe transient envelopes; Attack shapes sustained attenuation. New
+reconstructed-peak protection and final-output peak metering use eight-phase,
+256-tap detection. The graph legend and bottom meter captions remain removed.
+Legacy disables its unavailable controls visibly. Numeric entry, double-click
+reset, keyboard focus, undo, A/B and balanced host gestures remain supported.
+
+DSP uses fixed instance storage without audio-thread allocations. Parameter IDs
+0–6 retain their ranges/defaults; IDs 7–11 append the new controls. State schema 2
+loads schema 1 as Legacy with True Peak off. Original Legacy gain equations remain
+available. Constant latency increased from 5 ms to 640 samples / 13.33 ms at 48 kHz,
+including bypass and Legacy: hosts must refresh compensation, and old timed
+internal-gain automation needs rechecking. See [DSP design/research](limiter-dsp.md)
+and the [user guide](limiter.md) for precise behavior and compatibility.
+
+**Tested:** all 12 release CTest suites and all 12 ASan/UBSan suites passed with
+`UBSAN_OPTIONS=halt_on_error=1`. After the final paint adjustment, all six UI/native
+host suites passed again in both configurations. Native checks used the available
+X11 display; `xvfb-run` is unavailable and was not needed. Tests cover actual audio,
+constant latency, independent stereo links, attack/lookahead response, silent/quiet
+transparency, true-peak metering, old-state migration, corrupt state rejection,
+allocation guards, sample-offset events and bit-identical block partitions
+1/17/64/257/1024/4096. Formatter and whitespace checks pass.
+
+The independent NumPy/SciPy batch reference matched within 1.49e-14 across the
+measurement cases, including 44.1–192 kHz. All 114 independent 32×/8193-tap
+reconstruction stress cases passed the -1 dBFS ceiling (highest measured peak
+-1.218 dBFS). Turning protection off on the inter-sample test produced +2.099 dBFS.
+Extending the new transient hold to 26 ms reduced the +6 dB-drive 20 Hz sine
+residual from approximately -36 dB in the prototype to -77.38 dB. These are
+specified numerical tests, not universal reconstruction or listening guarantees.
+
+CLAP validator: 36 passed, zero failures/warnings, eight unsupported optional
+checks skipped. All five retained fuzz seeds passed, followed by a successful
+60-second two-worker fuzz run. Inspected limiter normal/compact/2x/preset-menu/
+style-menu/Legacy/numeric-entry/collapsed/Help/toggle-entry renders, plus shared EQ
+normal/compact/2x/menu/24-band regression views. Reports and the UI review are in
+`reports/limiter-0.2`; current previews are in `reports/limiter-ui`.
+
+Three final 48 kHz stereo probes used 11.8–12.3% of real time on average. With
+64-frame blocks (1333 µs budget), medians were 147–154 µs and p99 262–283 µs;
+maximum wall callbacks reached 2034 µs and maximum process-CPU readings reached
+1529 µs. Scheduling contributed to some spikes but does not explain all of them.
+This does **not** establish reliable operation at a 64-sample buffer. Instance
+storage is 5,923,552 bytes, including warm Legacy and detector histories.
+
+Rendered an original synthetic bass/drums/chords audition, latency-aligned and
+RMS-matched at -24 dBFS, with dry/Clean/Punch/Dense sections. It is not LUFS-matched
+and no subjective listening pass is claimed. Files and settings are in
+`reports/limiter-0.2/audition`.
+
+Installed only `~/.clap/OpenFilterLimiter.clap`; build/installed SHA-256 match:
+`feec7d05cbec6c02a17d094a86cf70fe26e1ffa9dadf5b1fe226072390df2021`.
+
+**Pending / qualification boundaries:** real-mix level-matched listening and
+Bitwig automation/recall/duplication/offline export; long-session worst-callback
+profiling and optimization; broader aliasing and external true-peak meter checks.
+Eight-phase detection is not audio-path oversampling. Full audio oversampling,
+LUFS and dither remain unimplemented. Pathological sharply gated exact-Nyquist
+signals can exceed the ceiling under still longer reconstruction kernels; the
+finite detector is not a universal DAC/codec guarantee or formal meter
+certification. This is a qualification candidate, not production approval or a
+claim of FabFilter sonic equivalence. Remote CI has not been run.
+
+## Limiter meter-caption cleanup
+
+**Implemented:** removed the persistent dBFS/dB captions below the limiter
+meters. The conditional CLIP indicator remains. Audio and interactions are unchanged.
+
+**Tested:** all six release UI/native-host suites passed on X11; inspected fresh
+limiter normal/compact/2x/menu and EQ normal/compact/2x/menu/24-band renders.
+Whitespace check passed. DSP measurements and CLAP validation were not rerun for
+this paint-only edit. Installed only the limiter; build/installed SHA-256 match:
+`ea080cfe70bce61f3276174e42646e258801825234fa231726f8fec8dc11b9ca`.
+
+**Pending:** Bitwig-specific visual confirmation.
+
+## Limiter legend cleanup
+
+**Implemented:** removed the small INPUT / OUTPUT / REDUCTION legend above the
+history at the user's request. This is a paint-only follow-up to 0.1.1.
+
+**Tested:** all six release UI/native-host suites passed on the available X11
+display. Rendered and inspected limiter normal/compact/2x/menu and EQ
+normal/compact/2x/menu/24-band views. Whitespace check passed. DSP measurements
+and CLAP validation were not rerun because audio and host integration are unchanged.
+Installed only the limiter; build and installed SHA-256 match:
+`7004d3e6e3de98e5196cc3ab8e76143120fa3be319990771db4d69d43b7fbb51`.
+
+**Pending:** Bitwig-specific visual confirmation.
+
+## Limiter reference-layout revision 0.1.1
+
+**Implemented:** removed oversized meter figures; small peak/reduction readouts
+now sit directly over tall meters. The history fills the workspace behind an
+integrated gain fader and shallow lower-left control strip, following the supplied
+Pro-L 2 screenshot with the suite's original graphite materials. The strip contains
+release mode, fixed lookahead, Release and Channel Link with a vertical Advanced
+tab. The gain readout is a draggable handle; a stationary click opens exact entry,
+and double-click still resets. Attenuation callouts show measured history maxima.
+Graph/output scales align at -36..0 dBFS; reduction uses 0..36 dB. No audio,
+parameter ID/default, latency or state-schema change.
+
+**Tested:** all 12 release CTest suites passed. All six UI/native GUI suites
+passed under ASan/UBSan with `UBSAN_OPTIONS=halt_on_error=1`, including gain-handle
+entry/drag/reset and balanced host gestures. Available X11 `DISPLAY=:0` was used;
+`xvfb-run` is not installed and was not needed. CLAP validator: 36 passed, zero
+failures/warnings, eight unsupported optional checks skipped; all five retained
+fuzz seeds passed. Rendered and inspected limiter normal/compact/2x/menu/entry,
+collapsed, Help and toggle-entry states, and EQ normal/compact/2x/menu/24-band.
+Formatting and whitespace checks passed. No measurement rerun was needed because
+DSP is unchanged. Reports: `reports/limiter-layout`, `reports/limiter-ui`.
+
+Installed only `~/.clap/OpenFilterLimiter.clap`; build/installed SHA-256 match:
+`777ff9cf26464933749a96a302aaee6a50f2680c7e6ee880e888c951dfe7858b`.
+
+**Pending:** Bitwig-specific visual/interaction confirmation and the audio
+qualification gates recorded below. This remains a sample-peak alpha.
+
+## Limiter sample-peak alpha 0.1.0
+
+**Implemented:** independent `plugins/limiter` engine, native editor and
+`OpenFilterLimiter.clap`, plugin ID `org.openfilter.limiter`, schema 1 with
+`OFLMSTAT` magic and seven permanent parameters. Predictive minimum-window gain
+control, smoothed attack, fixed 5 ms latency/lookahead, 10 ms peak hold,
+release/auto release, stereo linking, gain/ceiling, unity comparison and aligned
+bypass. Audio is independent of CLAP/UI and uses fixed storage. Event offsets,
+base/modulation separation, bounded state handoff and gesture backpressure follow
+the existing suite contract. The original L wordmark is now embedded alongside
+EQ/C; no dependency changes and no EQ/compressor DSP changes.
+
+The editor follows the official Pro-L 2 workflow reference: left gain fader,
+large six-second input/output/reduction display, right-hand output and reduction
+meters, collapsible timing panel, footer ceiling/unity/bypass, A/B, undo/redo,
+starting points, exact entry and descriptor-default double-click resets. The
+native graphite materials, controls and graphics are original OpenFilter work.
+Read limiter.md and limiter-plan.md for semantics and limitations.
+
+**Tested:** all 12 release CTest suites passed, and all 12 ASan/UBSan suites
+passed with `UBSAN_OPTIONS=halt_on_error=1` and no sanitizer diagnostics. Includes
+existing `ui_tests`/`gui_host_tests`, compressor equivalents and four new limiter
+suites. Native tests used the available X11 `DISPLAY=:0`; `xvfb-run` is not
+installed locally and was unnecessary. Synthetic host tests cover mono/stereo,
+float/double in-place audio, exact event offsets, bit-identical automation across
+1/17/64/257/1024/4096-sample partitions, state, modulation, allocation guards,
+five editor reopen cycles and begin/value/end events under host backpressure.
+A pre-existing zero-length `memcpy` with a null source in the compressor test
+stream was guarded to make the strict sanitizer run clean; this changes no
+plugin behavior. CI now measures/validates the limiter and fails on UBSan errors.
+The updated GitHub Actions workflow has not been run remotely.
+
+Independent NumPy/SciPy minimum-filter/convolution reference residual stayed
+below 3e-14. Sample ceiling passed impulses, random overload and extreme-gain
+stress; rates include 44.1/48/88.2/96/176.4/192 kHz in the independent measurements
+and 1–768 kHz boundary/rate tests in C++. At +6 dB drive, steady sine residuals
+were -73.9 dB (30 Hz), -121.7 dB (55 Hz), -113.6 dB (997 Hz); these narrow tests
+are not perceptual transparency claims. A deliberate inter-sample test exceeded
+the -1 dBFS ceiling by **3.01 dB** after 16x reconstruction: true-peak protection
+is not implemented. Aggregate 48 kHz stereo DSP benchmark: 0.048 s for 10 s of
+audio (~0.48% of real time), not a worst-callback scheduling guarantee.
+
+Final CLAP artifact: 36 validator checks passed, zero failures/warnings, eight
+unsupported optional checks skipped; all five retained fuzz seeds passed.
+Rendered and inspected limiter normal/compact/2x/menu/entry/toggle-entry/Help and
+collapsed views, plus EQ normal/compact/2x/menu/24-band and compressor
+normal/compact/2x/menu. EQ dense painting measured 11.73 ms/frame. Reports and
+previews are under `reports/limiter`, `reports/limiter-ui`, `reports/ui` and
+`reports/compressor-ui` (generated files are not committed).
+
+Installed only `~/.clap/OpenFilterLimiter.clap`. Build and installed SHA-256 match:
+`a8a3b88b31646873edf33868e241916df49440e291e092901f2aa76834ac27ce`.
+
+**Pending:** true-peak reconstruction/limiting, oversampling and aliasing
+qualification, BS.1770 loudness, dither, additional timing/styles, level-matched
+listening on real program material and Bitwig-specific automation, recall,
+resizing and export checks. This is a working sample-peak alpha, **not a
+production-mastering qualification**. No existing DAW projects were opened or
+changed. Synthetic-host success does not complete Bitwig validation.
+
 
 ## Product wordmark integration
 

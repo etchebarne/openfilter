@@ -95,3 +95,18 @@ https://eecs.qmul.ac.uk/~josh/documents/2012/GiannoulisMassbergReiss-dynamicrang
 No third-party compressor source code is included. FabFilter Pro-C documentation
 informed workflow research only; no FabFilter code, graphics or algorithms were
 copied. See docs/compressor-plan.md for the reference links.
+
+## Limiter research
+
+OpenFilter's limiter and fractional-delay detector are original implementations.
+Research references include ITU-R BS.1770-5 Annex 2 (peak estimation), the
+Giannoulis/Massberg/Reiss envelope tutorial cited above, and FabFilter Pro-L 2
+user documentation (workflow and control semantics only). No third-party
+limiter implementation, vendor coefficients or artwork is included.
+See docs/limiter-dsp.md for source links and qualification boundaries.
+
+Limiter 0.3's half-band resamplers and safety filters are original windowed-sinc
+implementations. Development-only cross-checks call system libebur128 1.2.6
+(MIT, https://github.com/jiixyj/libebur128/tree/v1.2.6); that library is neither
+bundled nor linked into the plugin. SciPy supplies independent FIR/convolution
+references in measurement scripts.

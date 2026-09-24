@@ -1,19 +1,29 @@
 # OpenFilter
 
-An open-source suite of CLAP audio effects with a parametric EQ and compressor.
+An open-source suite of CLAP audio effects with a parametric EQ, compressor, and limiter.
 First target: Linux and Bitwig Studio. C++20 / CMake, with independent DSP and a
 shared native CLAP integration foundation.
 
-Next effects: limiter, reverb, multiband compressor, de-esser,
+Next effects: reverb, multiband compressor, de-esser,
 gate/expander, and saturator/distortion.
 
-Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**.
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, and **Limiter qualification candidate (0.3.0)**.
 The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
 hold, auto release, stereo linking, internal/external sidechain with detector HP,
 0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
 It shares the EQ’s native UI materials, exact entry, A/B and undo workflows.
 Build output: `build/release/plugins/OpenFilterCompressor.clap`. Install only the
 compressor with `bash tools/install-compressor-local.sh`.
+
+**Limiter:** A separate dual-stage limiter with Clean/Punch/Dense voicings,
+adjustable lookahead, attack/release, separate transient/release linking, and
+reconstructed-peak protection/meters. Its graph-first editor follows the Pro-L
+workflow with suite materials. Old states migrate to Legacy mode. Latency is
+now 914 samples at 48 kHz. Modern styles use 4× audio oversampling at normal
+music rates; LUFS and dither remain optional future work.
+See the [limiter guide](docs/limiter.md) before using it on delivery masters.
+Build output: `build/release/plugins/OpenFilterLimiter.clap`. Install only the
+limiter with `bash tools/install-limiter-local.sh`.
 
 **EQ:** The plugin includes a resizable graphical
 editor with draggable bands, exact value entry, a pre/post spectrum analyzer,
@@ -49,6 +59,8 @@ process or Bitwig after replacing an already loaded binary. See the
 [editor guide](docs/editor.md) for controls and display conventions. The [development guide](docs/development.md) covers toolchain
 requirements, validation, installation, and the Bitwig smoke test.
 
+- [Limiter guide and validation boundaries](docs/limiter.md)
+- [Limiter audio contract and plan](docs/limiter-plan.md)
 - [Compressor guide and validation boundaries](docs/compressor.md)
 - [Compressor audio contract and plan](docs/compressor-plan.md)
 - [Suite UI and interaction conventions](docs/ui-conventions.md)

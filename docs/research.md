@@ -64,3 +64,27 @@ defines the normalized passband edge and analog pole/zero prototype;
 provides the independent digital SOS reference used against rendered audio.
 The reproducible prototype generator uses the pinned development-only SciPy
 version; no SciPy implementation is compiled into the plugin.
+
+
+## Limiter workflow research — 2026-09-24
+
+Inspected FabFilter's official Pro-L 2 overview image and help. Adopted the
+workflow hierarchy (gain fader, large history, right-hand output/reduction,
+collapsible timing controls) while drawing original native OpenFilter artwork.
+No proprietary DSP or graphics were copied.
+
+- [Overview and interface](https://www.fabfilter.com/help/pro-l/using/overview)
+- [Timing and channel linking](https://www.fabfilter.com/help/pro-l/using/advancedsettings)
+- [True-peak requirements](https://www.fabfilter.com/help/pro-l/using/truepeaklimiting)
+
+The initial engine deliberately claims sample-peak limiting only. Reconstructed
+peak tests demonstrate why true-peak qualification is a separate next milestone.
+
+## Limiter engine research — 2026-09-24
+
+[Limiter DSP design](limiter-dsp.md) records the primary references, original
+equations, engineering decisions and measured qualification gates for 0.2.0.
+The investigation compared short and long reconstruction filters, exposed
+short-filter under-reading on noise/Nyquist bursts, and measured deep-bass gain
+ripple before selecting the final hold and detector. This is independent
+engineering; vendor workflow documentation does not disclose vendor source code.
