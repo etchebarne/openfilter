@@ -1,11 +1,21 @@
 # Reverb plan and initial audio contract
 
 Linux / Bitwig, CLAP only. Plugin ID `org.openfilter.reverb`, state magic
-`OFRVSTAT`, schema 1. Permanent IDs are declared in Parameters.hpp. Existing
+`OFRVSTAT`, schema 2 (schema 1 migrates to the Legacy engine). Permanent IDs are declared in Parameters.hpp. Existing
 plugins and their states are unchanged. This is a first algorithmic reverb alpha,
 not a sonic match to FabFilter Pro-R 2 or a qualified production reverb.
 
-## Implementation milestone
+## 0.2 audio refinement
+
+[Research and validation](reverb-quality.md) document the Refined engine: integer
+tank delays, energy-preserving matrix modulation, three eight-channel lossless
+input-diffusion stages, stereo early-reflection taps and bounded transitions.
+New instances use Refined; the schema-1 sound below remains the Legacy path.
+No parameter IDs or meanings are silently reassigned. State schema 2 keeps the
+same 80 records and appends a 32-bit engine revision (1 Legacy, 2 Refined) before
+the checksum. Invalid revisions are rejected.
+
+## Legacy implementation milestone
 
 An original eight-delay orthogonal feedback delay network (normalized Hadamard),
 stereo injection/output vectors, four input allpass diffusers per channel,

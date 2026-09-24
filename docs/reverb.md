@@ -1,4 +1,4 @@
-# OpenFilter Reverb 0.1.1
+# OpenFilter Reverb 0.2.0
 
 A first native Linux CLAP reverb with an original eight-line feedback-delay
 network. FabFilter Pro-R 2 is the workflow and quality reference; this alpha does
@@ -23,7 +23,8 @@ Install only this plugin: `bash tools/install-reverb-local.sh`.
   balance, Ducking follows input level, and Auto Gate gates the wet output after
   input falls below -45 dBFS. The field alongside Auto Gate is its hold in ms.
 - **Freeze** fades out tank injection and damping. It can sustain a tail, but
-  interpolation still absorbs energy, especially at high frequencies.
+  static Refined mode preserves tank energy; changing geometry or filters can
+  still alter it. Legacy mode retains its original interpolation losses.
 - **Mix** blends dry/wet; use 100% on a send. Lock Mix preserves Mix while loading
   a starting preset. Input gain drives wet only; Output trims the mixture.
 - Choose **Decay Rate EQ** or **Post EQ** to edit that layer. Click the canvas for
@@ -53,6 +54,14 @@ boosts share a stability budget, so stacking bands may reduce their individual
 extension. The central time is a nominal reference, not a measurement of every
 frequency. Output meters are sample peaks, not true peaks or loudness.
 
+## Engine compatibility
+
+New instances use Refined. Saved 0.1.x states retain Legacy, including after
+resaving, and the footer identifies the engine. Create a new instance for a
+Refined comparison. All 80 automation IDs remain unchanged; schema 2 records
+the engine revision. Loading a different revision clears the tail.
+See the [research, measurements and listening notes](reverb-quality.md).
+
 ## Validation and next gates
 
 See [status](status.md) for completed checks and [audio contract](reverb-plan.md)
@@ -63,8 +72,9 @@ and native host regressions. On a headless system use `xvfb-run`.
 
 Remaining: matched listening and voicing in a new Bitwig scratch project;
 automation recording, save/reopen, duplication, mono/stereo and offline export;
-worst-callback profiling. Rapid Space/predelay changes can pitch-shift a tail,
-and filter-type switches still need transition qualification. IR import, surround,
+worst-callback profiling. Refined crossfades Space/predelay read positions and filter shapes. Rapid
+requests can lag a transition window and phase cancellation remains possible;
+Legacy retains its original pitch-shifting behavior. IR import, surround,
 decay-notch shaping, steep post cuts, automatic EQ compensation,
 gate tempo sync and a full preset browser are not implemented.
 

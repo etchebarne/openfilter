@@ -27,7 +27,7 @@ const clap_plugin_descriptor descriptor{CLAP_VERSION,
                                         "",
                                         "",
                                         "",
-                                        "0.1.1",
+                                        "0.2.0",
                                         "Algorithmic space with decay shaping and post EQ",
                                         features};
 
@@ -44,6 +44,7 @@ class Plugin final : public Base {
   private:
     struct Snapshot {
         Values values{};
+        unsigned revision = 2;
         uint64_t serial = 0;
         Values effective{};
         uint64_t uiSerial = 0;
@@ -53,6 +54,7 @@ class Plugin final : public Base {
     };
     const clap_host *host_;
     Engine engine_;
+    unsigned revision_ = 2;
     Values base_ = defaults(), modulation_{};
     plugin::TripleBuffer<Snapshot> published_;
     uint64_t audioSerial_ = 0; // audio-thread owned while active
@@ -149,6 +151,7 @@ class Plugin final : public Base {
         state.rate = rate_;
         state.mono = channels_ == 1;
         state.stateSerial = requested_.serial;
+        state.revision = requested_.serial > latest.serial ? requested_.revision : latest.revision;
         return state;
     }
 
@@ -243,6 +246,7 @@ class Plugin final : public Base {
     void publish() noexcept {
         Snapshot s;
         s.values = base_;
+        s.revision = revision_;
         s.serial = audioSerial_;
         s.uiSerial = audioUiSerial_;
         s.peaks = peaks_;
@@ -252,9 +256,11 @@ class Plugin final : public Base {
             s.effective[i] = parameter(i).constrain(base_[i] + modulation_[i]);
         published_.publish(s);
     }
-    bool snapshot(Values &values) noexcept {
+    bool snapshot(Values &values, unsigned *revision = nullptr) noexcept {
         const auto &latest = published_.read();
         values = requested_.serial > latest.serial ? requested_.values : latest.values;
+        if (revision)
+            *revision = requested_.serial > latest.serial ? requested_.revision : latest.revision;
         for (unsigned i = 0; i < parameterCount; ++i)
             if (uiDesiredSerial_[i] > latest.uiSerial)
                 values[i] = uiDesired_[i];
@@ -267,12 +273,14 @@ class Plugin final : public Base {
         // Bound work even if a producer is continuously loading presets.
         for (unsigned n = 0; n < 7 && pending_.pop(s); ++n) {
             base_ = s.values;
+            revision_ = s.revision;
             serial = s.serial;
             changed = true;
         }
         if (!changed)
             return;
         modulation_.fill(0);
+        engine_.setRevision(revision_, base_);
         for (unsigned i = 0; i < parameterCount; ++i)
             engine_.set(i, base_[i]);
         audioSerial_ = serial;
@@ -311,7 +319,7 @@ class Plugin final : public Base {
         consumeState();
         maxFrames_ = maxFrames;
         modulation_.fill(0);
-        engine_.prepare(rate, base_);
+        engine_.prepare(rate, base_, revision_);
         rate_ = rate;
         meterDecay_ = std::exp(-1 / (rate * .4));
         peaks_.fill(0);
@@ -508,31 +516,40 @@ class Plugin final : public Base {
         return true;
     }
     bool implementsState() const noexcept override { return true; }
-    static constexpr size_t stateSize = 16 + parameterCount * 12 + 4;
+    static constexpr size_t stateSize = 16 + parameterCount * 12 + 8;
     bool stateSave(const clap_ostream *stream) noexcept override {
         Values values;
-        if (!snapshot(values))
+        unsigned revision;
+        if (!snapshot(values, &revision))
             return false;
         std::array<uint8_t, stateSize> data{};
         std::memcpy(data.data(), "OFRVSTAT", 8);
-        plugin::put32(data.data() + 8, 1);
+        plugin::put32(data.data() + 8, 2);
         plugin::put32(data.data() + 12, parameterCount);
         for (unsigned i = 0; i < parameterCount; ++i) {
             plugin::put32(data.data() + 16 + i * 12, parameter(i).id);
             plugin::put64(data.data() + 20 + i * 12, std::bit_cast<uint64_t>(values[i]));
         }
+        plugin::put32(data.data() + stateSize - 8, revision);
         plugin::put32(data.data() + stateSize - 4, plugin::checksum(data.data(), stateSize - 4));
         return plugin::writeAll(stream, data.data(), data.size());
     }
     bool stateLoad(const clap_istream *stream) noexcept override {
         std::array<uint8_t, stateSize> data{};
-        if (!plugin::readAll(stream, data.data(), data.size()) ||
-            std::memcmp(data.data(), "OFRVSTAT", 8) || plugin::get32(data.data() + 8) != 1 ||
-            plugin::get32(data.data() + 12) != parameterCount ||
-            plugin::get32(data.data() + stateSize - 4) !=
-                plugin::checksum(data.data(), stateSize - 4))
+        if (!plugin::readAll(stream, data.data(), 16) || std::memcmp(data.data(), "OFRVSTAT", 8) ||
+            plugin::get32(data.data() + 12) != parameterCount)
+            return false;
+        const auto schema = plugin::get32(data.data() + 8);
+        if (schema != 1 && schema != 2)
+            return false;
+        const size_t size = schema == 1 ? stateSize - 4 : stateSize;
+        if (!plugin::readAll(stream, data.data() + 16, size - 16) ||
+            plugin::get32(data.data() + size - 4) != plugin::checksum(data.data(), size - 4))
             return false;
         Snapshot s{};
+        s.revision = schema == 1 ? 1 : plugin::get32(data.data() + stateSize - 8);
+        if (s.revision != 1 && s.revision != 2)
+            return false;
         s.serial = requested_.serial + 1;
         for (unsigned i = 0; i < parameterCount; ++i) {
             const auto p = parameter(i);

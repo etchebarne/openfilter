@@ -19,6 +19,7 @@ struct EditorState {
     Values values = defaults(), effective = defaults();
     std::array<double, 4> peaks{};
     bool clipped = false, mono = false;
+    unsigned revision = 2;
     double rate = 48000, reduction = 0;
     uint64_t stateSerial = 0;
 };

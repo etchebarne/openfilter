@@ -161,3 +161,14 @@ latency. A conservative infinite tail supports freeze automation. Snapshot,
 state queue, gesture backpressure and native editor lifecycle follow the existing
 plugins. The shared analyzer performs FFTs only on the main thread. See
 reverb-plan.md for loss bounds, approximation limits and the schema 1 contract.
+
+## Reverb refined engine (0.2.0)
+
+New instances add three lossless feedforward delay/mixing stages before the
+eight-line tank, integer tank reads with crossfaded geometry changes, and
+energy-preserving matrix modulation. Twelve signed early reflections per
+channel replace the single-copy early path. Two bounded filter branches blend
+shape changes. Fixed buffers and DSP remain independent of the host/UI.
+Schema 2 carries an engine revision; schema 1 sessions retain the old algorithm
+and resave as Legacy. All 80 parameter IDs and the plugin ID remain stable.
+See reverb-quality.md for research, actual-audio results and remaining gates.

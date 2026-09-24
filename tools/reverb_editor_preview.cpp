@@ -109,6 +109,13 @@ int main(int argc, char **argv) {
     e.release(0, 0);
     if (!render("post-eq.png", 1120, 720))
         return 1;
+    s.revision = 1;
+    e.tick();
+    if (!render("legacy.png", 900, 600))
+        return 1;
+    s.revision = 2;
+    e.tick();
+    e.resize(1120, 720);
     const auto start = std::chrono::steady_clock::now();
     auto *surface = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, 1120, 720);
     auto *cr = cairo_create(surface);

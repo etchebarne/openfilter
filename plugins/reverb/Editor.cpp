@@ -920,6 +920,8 @@ void Editor::paint(cairo_t *cr, double width, double height) {
     line(cr, 0, height - 44, width, height - 44, hex(0x000000, .7));
     centeredText(cr, "Reverb + Out", {16, height - 36, 100, 28}, 11, muted);
     centeredText(cr, "Tail history  2.2 s", {126, height - 36, 132, 28}, 10, dim);
+    centeredText(cr, model_.revision == 1 ? "Legacy engine" : "Refined engine",
+                 {270, height - 36, 100, 28}, 10, dim);
     for (unsigned i : {unsigned(Input), unsigned(Output)}) {
         const auto r = controlBounds(i);
         text(cr, parameter(i).name, r.x, r.y + 18, 11, muted);

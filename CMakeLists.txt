@@ -91,6 +91,8 @@ if(BUILD_TESTING)
   set_tests_properties(limiter_gui_host PROPERTIES SKIP_RETURN_CODE 77)
 endif()
 
+add_executable(reverb_benchmark tools/reverb_benchmark.cpp)
+target_link_libraries(reverb_benchmark PRIVATE openfilter_reverb_engine openfilter_options)
 add_executable(reverb_render tools/reverb_render.cpp)
 target_link_libraries(reverb_render PRIVATE openfilter_reverb_engine openfilter_options)
 add_executable(reverb_editor_preview tools/reverb_editor_preview.cpp)

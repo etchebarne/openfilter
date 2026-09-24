@@ -198,3 +198,9 @@ Run CTest, `python tools/measure_reverb.py`, and
 Help and all-band views to reports/reverb-ui. Also render the EQ's 24-band view
 when changing shared branding/materials. `tools/install-reverb-local.sh`
 installs only this project's reverb. Bitwig validation remains separate.
+
+Reverb 0.2 sound qualification additionally runs `tools/measure_reverb_quality.py
+--check` and `tools/qualify_reverb.py`. `reverb_benchmark rate block seconds
+default|dense|automated [instances]` records thread CPU and callback wall times.
+Run timing probes serially without other builds/tests. The matched listening
+pack and the limits of these diagnostics are documented in reverb-quality.md.

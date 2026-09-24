@@ -1,5 +1,61 @@
 # Project status — 2026-09-24
 
+## Reverb sound investigation and refinement — 0.2.0
+
+**Implemented:** researched feedback-delay-network density, coloration, delay
+interpolation and energy-preserving modulation. Replaced fractional tank
+modulation with integer reads and unitary matrix modulation in the new Refined
+engine. Added three lossless input-diffusion stages and twelve signed early
+reflections per channel. Space/predelay read positions and EQ shape changes
+crossfade with bounded work. Neutral sections and unchanged coefficients avoid
+unnecessary processing. No audio-thread allocation, locks or new runtime
+dependencies were added. Matplotlib is a pinned offline plotting dependency.
+
+Schema 2 retains all 80 parameter IDs and records an engine revision. Schema 1
+loads and resaves as Legacy; older sessions keep their original sound. The
+footer identifies the engine. New instances use Refined. Research, decisions,
+rejected sparse-input experiment, limits and reproduction commands are in
+[reverb-quality.md](reverb-quality.md).
+
+**Tested:** all 16 release CTest suites passed; the four reverb suites passed
+again after the final DSP changes, in release and ASan/UBSan builds. Regression
+coverage includes actual legacy-state recall/audio, invalid revision rejection,
+tempo retention across engine changes, fast overlapping geometry/filter-shape
+automation, allocation guards and sample-offset partition invariance. Four
+legacy impulse/burst/tone renders null exactly against the 0.1.1 executable.
+The original measurement script and new audio qualification gates pass.
+
+At 48 kHz, neutral 2.5 s mixing time improves from 360 to 110 ms; the neutral
+8 s tail's 8 kHz octave decay improves from 5.151 to 8.006 s. All nine neutral
+44.1/48/96 kHz rate/space cases meet the 8% tolerance at 1 and 8 kHz. All twelve
+neutral/style cases reach measured mixing within 300 ms. Freeze upper-band
+energy stays within 0.01 dB over the tested windows. Tone-transition sideband
+energy is 38–43 dB lower. Some spectral-ripple measurements are slightly worse;
+the report preserves those results rather than equating density with quality.
+
+Standalone 64-sample CPU probes on Ryzen 5 5600GT: one default instance at
+48 kHz uses 1.44% of one core versus 2.75% baseline; all bands with automation
+use 3.13% versus 2.97%. Four automated instances at 96 kHz use 26.14% total,
+with no observed deadline exceedances in the final 30-second-audio run.
+This excludes host/UI scheduling and engine-revision buffer clearing. It is
+not a worst-case real-time guarantee; see the report for an earlier stress
+run's single exceedance and detailed callback timings.
+
+CLAP validator: 36 passed, 0 failures/warnings, 8 optional checks skipped;
+all five retained fuzz cases and an additional 60-second fuzz run passed.
+UI/native host tests pass; reverb normal/compact/2x/menu/all-band and Legacy
+footer views were inspected, plus EQ normal/compact/2x/menu/24-band views.
+Native tests used DISPLAY=:0 because Xvfb is unavailable. Generated evidence,
+plots and level-matched synthetic WAVs are under reports/reverb-quality/.
+Installed only OpenFilterReverb.clap to ~/.clap and verified its SHA-256 matches
+the validated release artifact. No existing DAW project was modified.
+
+**Pending:** human listening on real recordings and controlled Pro-R comparison,
+wider modal coloration/mono/voicing assessment, long large-project profiling,
+and actual Bitwig automation/recall/export validation. No FabFilter sonic parity
+or professional production-readiness claim is made. New-instance Refined audio
+is ready for the user's listening evaluation; old sessions remain Legacy.
+
 ## Reverb glow refinement — 0.1.1
 
 **Implemented:** reduced the tail blur's logical spread by 10% and gold-layer

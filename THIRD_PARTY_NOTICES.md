@@ -110,3 +110,14 @@ implementations. Development-only cross-checks call system libebur128 1.2.6
 (MIT, https://github.com/jiixyj/libebur128/tree/v1.2.6); that library is neither
 bundled nor linked into the plugin. SciPy supplies independent FIR/convolution
 references in measurement scripts.
+
+## Reverb research attribution
+
+The original Refined reverb implementation is informed by Julius O. Smith's
+Physical Audio Signal Processing (delay interpolation), Schlecht and Habets'
+work on time-varying unitary feedback matrices and scattering, Fagerström et al.
+on velvet-noise FDNs, and Dal Santo et al. on FDN coloration/density optimization.
+No source code from these publications was incorporated. Full paper links,
+implementation distinctions, rejected experiments and measurements are retained
+in docs/reverb-quality.md. FabFilter documentation is a workflow/quality
+reference; no FabFilter code, audio or graphics is included.

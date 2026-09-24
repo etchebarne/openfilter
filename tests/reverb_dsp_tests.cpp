@@ -99,6 +99,23 @@ int main() {
                     CHECK(l > .01);
             }
         }
+        // Restoring a different engine revision retains the host's current tempo.
+        {
+            auto v = defaults();
+            v[Mix] = 100;
+            v[PredelaySync] = 3;
+            e->prepare(48000, v, 1);
+            e->tempo(240);
+            e->setRevision(2, v);
+            for (unsigned n = 0; n <= 3000; ++n) {
+                double l = n == 0 ? 1 : 0, r = l;
+                e->sample(l, r);
+                if (n < 3000)
+                    near(l, 0, 1e-15);
+                else
+                    CHECK(l > .01);
+            }
+        }
         // Freeze keeps an excited tank alive and rejects newly arriving input.
         auto frozen = std::make_unique<Engine>();
         auto f = defaults();
@@ -156,6 +173,34 @@ int main() {
         }
         realtime = false;
         CHECK(energy > 0 && energy < 100);
+        // Exercise overlapping shape/geometry requests through actual audio.
+        // Updates arrive faster than the transition window and must stay bounded.
+        v = defaults();
+        v[Mix] = 100;
+        v[bandIndex(true, 0, Enabled)] = 1;
+        v[bandIndex(true, 0, Amount)] = 12;
+        v[bandIndex(false, 0, Enabled)] = 1;
+        v[bandIndex(false, 0, Amount)] = 200;
+        e->prepare(48000, v);
+        realtime = true;
+        for (unsigned n = 0; n < 144000; ++n) {
+            if (n % 64 == 0) {
+                e->set(bandIndex(true, 0, Type), (n / 64) % 6);
+                e->set(bandIndex(false, 0, Type), (n / 64) % 3);
+                e->set(bandIndex(true, 0, Frequency), n % 128 ? 20 : 20000);
+                e->set(bandIndex(true, 0, Q), n % 128 ? .2 : 10);
+            }
+            if (n % 4096 == 0) {
+                e->set(Space, n % 8192 ? .2 : 10);
+                e->set(Predelay, n % 8192 ? 0 : 500);
+                e->set(Freeze, n % 8192 ? 0 : 1);
+            }
+            double l = .1 * std::sin(n * .13), r = .1 * std::cos(n * .037);
+            e->sample(l, r);
+            CHECK(std::isfinite(l) && std::isfinite(r));
+            CHECK(std::abs(l) < 20 && std::abs(r) < 20);
+        }
+        realtime = false;
         std::cout << "Reverb DSP: dry/bypass, rate matrix, predelay, stereo tail, reset, extremes "
                      "and realtime allocation guards passed\n";
     } catch (const std::exception &e) {

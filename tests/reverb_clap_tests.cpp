@@ -258,6 +258,48 @@ void states(const clap_plugin_factory *factory) {
     f.process(l, r, empty);
     near(f.value(Brightness), 32);
 }
+void legacyState(const clap_plugin_factory *factory) {
+    Fixture f(factory);
+    auto state = f.save();
+    // Construct the exact schema-1 layout: 80 records followed by checksum.
+    state.bytes.resize(16 + parameterCount * 12 + 4);
+    plugin::put32(state.bytes.data() + 8, 1);
+    plugin::put32(state.bytes.data() + state.bytes.size() - 4,
+                  plugin::checksum(state.bytes.data(), state.bytes.size() - 4));
+    CHECK(f.load(state));
+    auto migrated = f.save();
+    CHECK(plugin::get32(migrated.bytes.data() + 8) == 2);
+    CHECK(plugin::get32(migrated.bytes.data() + migrated.bytes.size() - 8) == 1);
+    Fixture recalled(factory);
+    CHECK(recalled.load(migrated));
+    recalled.start();
+    auto reference = std::make_unique<Engine>();
+    reference->prepare(48000, defaults(), 1);
+    Events empty;
+    for (unsigned block = 0; block < 32; ++block) {
+        std::vector<double> l(4096), r(4096), expectedL(4096), expectedR(4096);
+        for (unsigned n = 0; n < 4096; ++n) {
+            l[n] = expectedL[n] = block == 0 && n == 0 ? 1 : 0;
+            r[n] = expectedR[n] = l[n] * .5;
+            reference->sample(expectedL[n], expectedR[n]);
+        }
+        recalled.process(l, r, empty);
+        CHECK(l == expectedL && r == expectedR);
+    }
+    auto invalid = migrated;
+    plugin::put32(invalid.bytes.data() + invalid.bytes.size() - 8, 3);
+    plugin::put32(invalid.bytes.data() + invalid.bytes.size() - 4,
+                  plugin::checksum(invalid.bytes.data(), invalid.bytes.size() - 4));
+    CHECK(!f.load(invalid));
+    // A current state keeps its algorithm while loading during active processing.
+    Fixture current(factory);
+    auto refined = current.save();
+    CHECK(recalled.load(refined));
+    CHECK(plugin::get32(recalled.save().bytes.data() + refined.bytes.size() - 8) == 2);
+    std::vector<double> l(64), r(64);
+    recalled.process(l, r, empty);
+    CHECK(plugin::get32(recalled.save().bytes.data() + refined.bytes.size() - 8) == 2);
+}
 void audio(const clap_plugin_factory *factory) {
     for (bool mono : {false, true})
         for (bool floats : {false, true}) {
@@ -376,6 +418,7 @@ int main(int argc, char **argv) {
         CHECK(factory && factory->get_plugin_count(factory) == 1);
         metadata(factory);
         states(factory);
+        legacyState(factory);
         audio(factory);
         transport(factory);
         const auto reference = automated(factory, 1);

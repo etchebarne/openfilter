@@ -7,7 +7,7 @@ shared native CLAP integration foundation.
 Next effects: multiband compressor, de-esser,
 gate/expander, and saturator/distortion.
 
-Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, and **Reverb alpha (0.1.1)**.
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, and **Reverb alpha (0.2.0)**.
 The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
 hold, auto release, stereo linking, internal/external sidechain with detector HP,
 0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
@@ -25,11 +25,12 @@ See the [limiter guide](docs/limiter.md) before using it on delivery masters.
 Build output: `build/release/plugins/OpenFilterLimiter.clap`. Install only the
 limiter with `bash tools/install-limiter-local.sh`.
 
-**Reverb alpha (0.1.1):** A separate algorithmic reverb with a Space-centered
+**Reverb alpha (0.2.0):** A separate algorithmic reverb with a Space-centered
 editor, six-band decay shaping and six-band wet post EQ, original Modern /
 Vintage / Plate voicings, predelay sync, ducking, gate, freeze and mix lock.
-Uses the suite's graphite materials and approved R wordmark. This is a first
-measured alpha; Bitwig listening and full Pro-R feature parity are pending.
+Adds dense input diffusion, energy-preserving modulation and smoother parameter
+transitions; older saved sessions retain their original engine. See the
+[audio investigation](docs/reverb-quality.md). This is a measured alpha; Bitwig listening and full Pro-R feature parity are pending.
 See the [reverb guide](docs/reverb.md) and [audio contract](docs/reverb-plan.md).
 Build output: `build/release/plugins/OpenFilterReverb.clap`. Install only the
 reverb with `bash tools/install-reverb-local.sh`.
