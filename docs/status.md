@@ -1,4 +1,169 @@
-# Project status — 2026-09-24
+# Project status — 2026-09-25
+
+## Saturator CPU and quality investigation — 0.1.1
+
+**Implemented:** optimized polyphase histories, batched oversampling stages,
+equivalent host-rate dry convolution, immutable Hermite curve tables, stationary
+gain caches, fixed-frequency tone precomputation, mono processing and exact-zero
+silence skipping. Retains 32× at 44.1/48 kHz, original transfer functions,
+76-sample latency, sample-based smoothing, all 43 IDs and state schema 1.
+No intentional sound change. The shared limiter FIR implementation was also
+regression-checked; only the saturator artifact was installed. No UI changes in
+this milestone. Research, implementation decisions and qualification boundaries:
+[saturator-quality.md](saturator-quality.md).
+
+**Tested:**
+
+- All 28 release CTest suites passed, including UI/native host checks on
+  DISPLAY=:0. All four final saturator ASan/UBSan suites passed. Limiter DSP and
+  CLAP sanitizer suites and its independent measurement script passed after the
+  shared FIR change. Final C++ formatting, Python compilation and diff checks pass.
+- Final-artifact clap-validator: 36 passed, zero failures/warnings, eight
+  unsupported optional checks skipped. All five retained fuzz seeds passed.
+- Original independent measurements passed: nonlinear peak error 1.345e-12,
+  tone/dynamics error 1.194e-12, dry/disabled exact null and negligible steady DC.
+  Direct-form FIR references and original 0.1.0 automation fixtures pass; mono,
+  silence/wakeup, block partitioning and allocation guards remain covered.
+- Expanded 576-case sweep at 44.1/48/96/192 kHz passes the stated 20 Hz–20 kHz
+  intended-use gate: worst −102.75 dBc for drive ≤24 dB and input peak ≤−6 dBFS.
+  All-setting worst remains −41.8 dBc at 36 dB drive with hot high-frequency
+  input. Full-Nyquist diagnostics remain in the report, including the ultrasonic
+  transition-region residue at 96 kHz. Independent 64×/128× multitone/noise
+  convergence passes, with audible engine/reference residual around −98 dB.
+- Actual CLAP, 48 kHz/64 frames on Ryzen 5 5600GT, editor closed: default stereo
+  21.88% → 9.68% of one core (55.7% reduction); mono 22.20% → 4.98%; exact
+  silence 17.30% → 0.19%. Two-minute dense automation: p99 wall 330.47 µs,
+  maximum 938.03 µs, zero 1.333 ms deadline exceedances. Four default instances:
+  38.40% CPU, zero exceedances; four densely automated instances: 80.47%,
+  **36/11,250 exceedances**, so no universal multi-instance deadline claim.
+  These are unpaced synthetic-host timings, not a Bitwig scheduling result.
+- Prepared 30 RMS-matched real-recording evaluation WAVs from six EBU SQAM
+  excerpts. Baseline/optimized maximum sample error 4.07e-13; worst residual RMS
+  −260.96 dBFS before audition matching. Sources, hashes, gains and offsets are
+  recorded in `reports/saturator-cpu/program-material/manifest.json`. Material
+  remains local R&D-only under EBU terms. **Human listening is still pending.**
+
+Reports: `reports/saturator-cpu/`. Installed only
+`/home/martin/.clap/OpenFilterSaturator.clap`; build/installed SHA-256:
+`ba7d6b68a3279ac5edcd4f89eb8de42f22136ac65ca2c378821b764e331e7593`.
+
+**Pending:** Bitwig playback, automation recording, save/reopen, duplication,
+offline export, multiple visible editors and paced scheduling in a scratch
+session; controlled listening on studio material and complete mixes. Extreme
+drive/hot inputs do not meet the nominal alias gate; future antialiasing modes
+need explicit phase, automation and compatibility work. No direct Saturn sound
+comparison or analog hardware matching is claimed. Existing DAW projects were
+not modified.
+
+
+## Saturator visual redesign — 0.1.0 UI revision
+
+**Implemented:** replaced the large rectangular panel with a shallow floating
+rail, enlarged the drive dial with a band-colored amount ring, strengthened
+selected-band shading and extended the spectrum behind the controls with a
+contrast-preserving fade. Shared graphite caps, surfaces, meters and wordmark
+remain in use. Tone sliders have larger raised thumbs; captions/readouts share
+baselines. Three bottom band selectors show stored drive/style and a normalized
+static waveshaper glyph. Crossover readouts now support single-click exact entry.
+No DSP, parameter, state-schema or CLAP contract changes were made.
+
+**Tested:** all 28 release CTest suites passed, including `ui_tests` and
+`gui_host_tests`; the final spacing refinement passed both saturator UI/native
+host suites again. The saturator ASan/UBSan UI and native-host suites passed.
+Native tests ran on DISPLAY=:0, with no GUI skips. Expanded interaction coverage
+checks each band's readout/drag targets at 0.75×, 1×, 2× and 3×, independently
+preserving all other parameter values. Host gesture retry and closing mid-drag
+remain covered. Inspected normal, compact, 2×, preset/style menus, entry,
+disabled and crossed-automation views; also inspected the required EQ normal,
+compact, 2×, menu and 24-band renders. Retained reports: `reports/saturator/ui-revision-*`
+and `reports/saturator-ui/`. The preview feeds deterministic harmonic plus
+broadband audio through the real engine/analyzer. Software painting measured
+19.31 ms/frame over 60 frames at 1120×720; this excludes FFT/X11 transport and is
+not a worst-case deadline guarantee. DSP measurements were not rerun for this
+UI-only change. Installed-artifact clap-validator: 36 passed, 0 failed,
+0 warnings, eight unsupported optional checks skipped.
+
+Installed only `/home/martin/.clap/OpenFilterSaturator.clap`; build/installed
+SHA-256: `fb46c0d50180c0c807d7886540ae51a0fdf18176244f599d1dbeea6abf7b411a`.
+
+**Pending:** Bitwig-specific visual/use confirmation and the studio audio
+qualification work listed below. No DAW project was modified.
+
+
+## Saturator alpha 0.1.0
+
+**Implemented:** separate `plugins/saturator` DSP/editor/CLAP targets and
+`OpenFilterSaturator.clap`. Three permanent phase-compensated 24 dB/oct bands,
+four original smooth saturation curves, up to 32× FIR oversampling, 76-sample
+latency, per-band drive/mix/level, linked dynamics, four post-saturation tone
+filters, enable/solo/mute, input/output trim, global mix and drive compensation.
+Oversampling is 32× through 48 kHz, 16× through 96 kHz, 8× through 192 kHz,
+4× through 384 kHz and 2× above that; padding retains fixed latency. The native
+spectrum-led editor uses suite materials and the approved S artwork, draggable
+crossovers/levels, exact entry, descriptor-default resets, A/B, undo and five
+starting-point presets. 43 stable parameters, schema 1, sample-offset CLAP
+modulation with separate base values, bounded state/UI queues and gesture retry.
+
+The limiter's sparse half-band primitive moved into the shared DSP library
+without arithmetic changes. Brand integration appends the saturator; existing
+plugin IDs, parameter contracts and audio semantics are unchanged. No runtime
+dependency was added. Research and numerical definitions are in
+[saturator-plan.md](saturator-plan.md); workflow and limitations are in
+[saturator.md](saturator.md).
+
+**Tested locally (2026-09-25):**
+
+- All 28 release CTest suites passed; all four saturator ASan/UBSan suites passed.
+  Native X11 tests used DISPLAY=:0 with no skipped GUI suites. They cover five
+  reopen cycles, scaling/resizing, double-click reset after host automation,
+  pending-state save/recall, superseded edits, allocation guards with analysis
+  active, and begin/value/end retry when the host rejects output events.
+- The existing limiter measurement script also passed after the unchanged
+  resampler extraction; retained report: `reports/saturator/limiter-regression.json`.
+- Actual CLAP audio agrees bit-for-bit across block sizes 1/17/64/257/1024/4096
+  under crossover, style, drive, modulation, tone, dynamics and bypass events.
+  Float/double and mono/stereo are checked against the independent engine.
+- External clap-validator: 36 passed, 0 failed, 0 warnings; eight unsupported
+  optional extension checks skipped. All five retained fuzz seeds passed.
+- Independent SciPy audio reference: peak residual 2.83e-14 for the nonlinear
+  engine; tone/dynamics residual 4.03e-14. Reference uses direct-form RBJ and
+  Butterworth/SciPy FIR processing rather than the engine's TPT implementation.
+- Measured dry magnitude error ≤0.00441 dB across the tested 50 Hz–20 kHz points
+  at 44.1/48/96 kHz. Global dry versus disabled-band output nulls exactly.
+  Asymmetric residual DC on the stated steady sine is about 1.24e-17.
+- Coherent −6 dBFS sine tests at approximately 2.92/8.79/17.60 kHz, 48 kHz:
+  worst non-harmonic residue −111.8 dBc at 12 dB drive, −105.9 dBc at 24 dB,
+  and −55.3 dBc at 36 dB, across four styles. The 36 dB extreme is a documented
+  limitation. These measurements are not universal alias-free claims.
+- Separate 128× ideal-resampler, two-tone comparison at 24 dB drive:
+  residuals −92.46 / −93.64 / −87.19 / −90.24 dB for Soft / Rounded / Dense /
+  Asymmetric. This comparison includes filter differences, not just aliasing.
+- Inspected normal, compact, 2×, preset/style menu, entry, disabled, Help and
+  crossed-automation renders. Also inspected EQ normal/compact/2×/menu/24-band
+  views after shared branding changes. C++ formatting and diff whitespace pass.
+
+Reports: `reports/saturator/`; UI: `reports/saturator-ui/`. The reproducible
+`tools/saturator_listening.py` creates five RMS-matched synthetic audition WAVs
+and a gain/settings manifest under `reports/saturator/listening`. These were
+generated and numerically checked; they are not a completed listening review.
+
+Aggregate default-engine throughput on this machine: 10 s of 48 kHz stereo in
+2.317 s, 23.2% of real time. Moving linear tone/DC processing after decimation
+and avoiding unnecessary style evaluations improved the initial 4.179 s result.
+This remains CPU-heavy; aggregate wall time does not certify callback deadlines
+or multi-instance capacity. Higher rates adapt oversampling to bound nonlinear
+work. Silence/tail handling remains conservative (infinite tail, CONTINUE).
+
+Initial alpha installation (superseded by the UI revision above):
+SHA-256: `2198cc45a8602f1b755946378a4d820e1f24832ae87e51660f7dd2c56aba3a07`.
+
+**Pending:** Bitwig discovery/playback/automation recording, duplicate/state
+recall/export, level-matched listening on real vocals/drums/bass/mixes, long-session
+and worst-callback profiling, further CPU optimization, bounded silence/sleep,
+full accessibility, variable band count, feedback, internal modulation and
+linear-phase crossovers. No Bitwig project was modified. This is a measured
+alpha; professional studio-release qualification remains incomplete. CI now
+includes the new tests, measurement and validator steps; remote CI has not run.
 
 
 ## Gate visualizer clarity revision

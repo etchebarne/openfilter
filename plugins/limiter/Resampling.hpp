@@ -3,72 +3,10 @@
 #include <array>
 #include <cmath>
 #include <numbers>
+#include <openfilter/dsp/HalfBand.hpp>
 
 namespace openfilter::limiter {
-// Original linear-phase half-band FIR. N = 4m+1 gives an exact integer
-// round-trip delay. Zero taps and symmetric pairs are omitted from convolution.
-// Coefficients are constructed only at prepare; histories are fixed storage.
-template <unsigned N> class HalfBand {
-    static_assert(N % 4 == 1);
-    static constexpr unsigned middle = (N - 1) / 2, count = middle;
-    std::array<double, count> coefficients_{};
-    std::array<double, 2 * (count + 1)> upHistory_{};
-    std::array<double, 2 * N> downHistory_{};
-    unsigned upPosition_ = 0, downPosition_ = 0;
-    static double bessel(double x) noexcept {
-        double sum = 1, term = 1;
-        for (unsigned k = 1; k <= 40; ++k) {
-            term *= x * x / (4 * k * k);
-            sum += term;
-        }
-        return sum;
-    }
-    void push(double x) noexcept {
-        downPosition_ = (downPosition_ + N - 1) % N;
-        downHistory_[downPosition_] = downHistory_[downPosition_ + N] = x;
-    }
-
-  public:
-    void prepare() noexcept {
-        const double normal = bessel(10);
-        double sum = 0;
-        for (unsigned k = 0; k < count; ++k) {
-            const double t = double(2 * k + 1) - middle;
-            const double window =
-                bessel(10 * std::sqrt(std::max(0., 1 - t * t / (middle * middle)))) / normal;
-            coefficients_[k] = std::sin(std::numbers::pi * t / 2) / (std::numbers::pi * t) * window;
-            sum += coefficients_[k];
-        }
-        // Each phase has exact unit DC gain; the even phase is a delayed wire.
-        for (auto &c : coefficients_)
-            c *= .5 / sum;
-        upHistory_.fill(0);
-        downHistory_.fill(0);
-        upPosition_ = downPosition_ = 0;
-    }
-    std::array<double, 2> up(double x) noexcept {
-        constexpr unsigned length = count + 1;
-        upPosition_ = (upPosition_ + length - 1) % length;
-        upHistory_[upPosition_] = upHistory_[upPosition_ + length] = x;
-        const auto *h = upHistory_.data() + upPosition_;
-        std::array<double, 4> sums{};
-        for (unsigned k = 0; k < count / 2; k += 4)
-            for (unsigned j = 0; j < 4; ++j)
-                sums[j] += coefficients_[k + j] * (h[k + j] + h[count - 1 - k - j]);
-        return {h[middle / 2], 2 * ((sums[0] + sums[1]) + (sums[2] + sums[3]))};
-    }
-    double down(double even, double odd) noexcept {
-        push(even);
-        const auto *h = downHistory_.data() + downPosition_;
-        std::array<double, 4> sums{};
-        for (unsigned k = 0; k < count / 2; k += 4)
-            for (unsigned j = 0; j < 4; ++j)
-                sums[j] += coefficients_[k + j] * (h[2 * (k + j) + 1] + h[N - 2 - 2 * (k + j)]);
-        const double out = .5 * h[middle] + ((sums[0] + sums[1]) + (sums[2] + sums[3]));
-        push(odd);
-        return out;
-    }
-};
+using dsp::HalfBand;
 
 // Anti-alias filters at exactly Nyquist leave a half-amplitude boundary.
 // This final band limit moves that transition below Nyquist, preventing the

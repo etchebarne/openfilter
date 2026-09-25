@@ -1,12 +1,12 @@
 # OpenFilter
 
-An open-source suite of CLAP audio effects with a parametric EQ, compressor, limiter, reverb, de-esser, and gate/expander.
+An open-source suite of CLAP audio effects with a parametric EQ, compressor, limiter, reverb, de-esser, gate/expander, and multiband saturator.
 First target: Linux and Bitwig Studio. C++20 / CMake, with independent DSP and a
 shared native CLAP integration foundation.
 
-Next effects: multiband compressor and saturator/distortion.
+Next effect: multiband compressor.
 
-Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, **De-Esser alpha (0.1.0)**, and **Gate alpha (0.1.0)**.
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, **De-Esser alpha (0.1.0)**, **Gate alpha (0.1.0)**, and **Saturator alpha (0.1.1)**.
 The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
 hold, auto release, stereo linking, internal/external sidechain with detector HP,
 0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
@@ -51,6 +51,16 @@ materials and G wordmark. See the [gate guide](docs/gate.md) and
 [audio contract](docs/gate-plan.md). Bitwig and listening qualification are pending.
 Build output: `build/release/plugins/OpenFilterGate.clap`. Install only this
 effect with `bash tools/install-gate-local.sh`.
+
+**Saturator alpha (0.1.1):** Three bands with phase-compensated crossovers,
+four original saturation curves, up to 32× oversampling, per-band drive/mix,
+linked dynamics, four tone filters, solo/mute and global drive compensation.
+The spectrum-led editor follows Saturn's workflow with suite materials and the
+approved S wordmark. See the [guide and qualification limits](docs/saturator.md)
+and [audio contract](docs/saturator-plan.md). Bitwig, listening, and further real-time qualification remain pending; the optimized engine retains the
+same filters and oversampling. See the [CPU and quality investigation](docs/saturator-quality.md).
+Build output: `build/release/plugins/OpenFilterSaturator.clap`. Install only this
+effect with `bash tools/install-saturator-local.sh`.
 
 **EQ:** The plugin includes a resizable graphical
 editor with draggable bands, exact value entry, a pre/post spectrum analyzer,

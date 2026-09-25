@@ -196,3 +196,15 @@ compressor adapter; existing ramp, queue, snapshot, stream and drawing primitive
 are reused. The reference-inspired control arrangement uses original suite
 materials and the approved G artwork. See gate-plan.md for stable IDs, schema 1,
 equations, finite rate limits and the qualification boundary.
+
+
+## Saturator addition (0.1.0)
+
+`plugins/saturator` owns three-band Linkwitz–Riley splitting with low-band phase
+compensation, four original smooth nonlinear curves, rate-adaptive oversampling,
+linked envelope dynamics, post-decimation tone and residual DC rejection.
+Wet and dry use matched FIR paths and fixed 76-sample latency. DSP depends on
+neither CLAP nor UI. The limiter's existing half-band primitive is now shared;
+its arithmetic and the limiter's sound are unchanged. The native spectrum-led
+editor reuses the analyzer, materials, concurrency/state bridge and approved
+S wordmark. See saturator-plan.md for schema 1, IDs, semantics and qualification.

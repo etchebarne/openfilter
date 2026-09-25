@@ -2,7 +2,7 @@
 #include "BrandPaths.hpp"
 
 namespace openfilter::ui {
-enum class Brand { Eq, Compressor, Limiter, Reverb, Deesser, Gate };
+enum class Brand { Eq, Compressor, Limiter, Reverb, Deesser, Gate, Saturator };
 
 // Outlined artwork is embedded in the binary and painted only by the UI thread.
 // Fit without distortion, left aligned and vertically centered in the header.
@@ -13,6 +13,7 @@ inline void drawBrand(cairo_t *c, Brand brand, Rect destination) {
                         : brand == Brand::Compressor ? brand_detail::compressorBounds
                         : brand == Brand::Limiter    ? brand_detail::limiterBounds
                         : brand == Brand::Reverb     ? brand_detail::reverbBounds
+                        : brand == Brand::Saturator  ? brand_detail::saturatorBounds
                         : brand == Brand::Gate       ? brand_detail::gateBounds
                                                      : brand_detail::deesserBounds;
     const double scale = std::min(destination.w / bounds.w, destination.h / bounds.h);
@@ -28,6 +29,8 @@ inline void drawBrand(cairo_t *c, Brand brand, Rect destination) {
         brand_detail::limiter(c);
     else if (brand == Brand::Reverb)
         brand_detail::reverb(c);
+    else if (brand == Brand::Saturator)
+        brand_detail::saturator(c);
     else if (brand == Brand::Gate)
         brand_detail::gate(c);
     else

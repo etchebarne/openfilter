@@ -27,12 +27,15 @@ jobs:
           .venv/bin/python tools/measure_eq.py
           .venv/bin/python tools/measure_compressor.py
           .venv/bin/python tools/measure_gate.py
+          .venv/bin/python tools/measure_saturator.py
+          .venv/bin/python tools/measure_saturator_quality.py
           .venv/bin/python tools/measure_limiter.py
           .venv/bin/python tools/measure_limiter_quality.py
           bash tools/build-validator.sh
           bash tools/check-clap.sh
           bash tools/check-clap.sh build/release/plugins/OpenFilterCompressor.clap
           bash tools/check-clap.sh build/release/plugins/OpenFilterGate.clap
+          bash tools/check-clap.sh build/release/plugins/OpenFilterSaturator.clap
           bash tools/check-clap.sh build/release/plugins/OpenFilterLimiter.clap
       - name: Check formatting
         run: git ls-files '*.cpp' '*.hpp' | xargs .venv/bin/clang-format --dry-run --Werror

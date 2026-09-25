@@ -121,3 +121,28 @@ No source code from these publications was incorporated. Full paper links,
 implementation distinctions, rejected experiments and measurements are retained
 in docs/reverb-quality.md. FabFilter documentation is a workflow/quality
 reference; no FabFilter code, audio or graphics is included.
+
+
+## Saturator research attribution
+
+The saturation curves, crossover composition and resampling integration are
+original. Research includes Linkwitz Lab's crossover/allpass equations,
+Rane's Linkwitz–Riley primer, and Parker, Zavalishin & Le Bivic (DAFx 2016) on
+waveshaping alias reduction. No source code from these publications is included.
+FabFilter Saturn 2 documentation and the user-provided screenshot inform the
+workflow only; no FabFilter graphics, proprietary models or code are bundled.
+The suite's original half-band primitive is shared with the limiter; version
+0.1.1 optimizes its history layout while preserving its filter equations.
+SciPy/NumPy are development-only independent audio references.
+Further research: Werner & Azelborn (DAFx 2023) on polynomial antiderivative
+antialiasing, and Gabrielli & Squartini (DAFx 2025) on lookup-table antiderivatives.
+No source code from these papers is included. The shipping Hermite tables
+evaluate the original static functions; ADAA remains an offline experiment.
+Full links and implementation distinctions: docs/saturator-plan.md and
+docs/saturator-quality.md.
+
+Local evaluation additionally uses EBU SQAM recordings under their R&D-use terms:
+https://qc.ebu.io/testmaterials/523/ . The downloaded sources and listening renders
+stay in ignored reports, are not shipping assets, and are not MIT-licensed audio.
+System libsndfile is used only by the optional development decoding script and
+is neither bundled nor linked into the plugin.

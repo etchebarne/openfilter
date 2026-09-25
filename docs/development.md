@@ -233,3 +233,48 @@ normal, compact, 2x, menu, entry, sidechain-menu, collapsed and Help views under
 `reports/gate-ui`. `gate_render --benchmark` measures aggregate throughput.
 `tools/install-gate-local.sh` installs only the gate. Bitwig and musical listening
 remain separate from synthetic-host validation.
+
+
+## Saturator development
+
+`plugins/saturator` builds a separate `OpenFilterSaturator.clap`. Its independent
+engine composes the suite's sparse half-band resampler (extracted unchanged
+from the limiter into `libs/dsp/HalfBand.hpp`), TPT filters and ramps. No new
+runtime dependencies are added. See saturator-plan.md and saturator.md.
+
+Run CTest, `.venv/bin/python tools/measure_saturator.py`, and
+`bash tools/check-clap.sh build/release/plugins/OpenFilterSaturator.clap`.
+The sanitizer preset includes four saturator suites. `saturator_editor_preview`
+writes normal, compact, 2×, preset/style menu, entry, disabled and Help views.
+Also inspect EQ's 24-band render after shared branding changes.
+`saturator_render --benchmark` gives aggregate throughput. Run profiling without
+competing tools; throughput does not certify callback deadlines or DAW capacity.
+The render CLI accepts sample rate followed by parameter-ID/value pairs and
+reads/writes interleaved stereo little-endian float64 audio on stdin/stdout.
+`tools/install-saturator-local.sh` installs only the saturator.
+
+`tools/saturator_listening.py` generates deterministic synthetic bass/chord/drum
+material through dry and all four styles, RMS-matched for initial audition.
+The WAVs and exact matching gains are saved in reports/saturator/listening.
+This material supplements, and does not replace, real-stem listening qualification.
+
+
+Saturator 0.1.1 also runs `tools/measure_saturator_quality.py`: 576 coherent-sine
+cases, audible-band/full-band residue reported separately, plus independent
+64×/128× convergence on a multitone/noise signal. `tools/investigate_saturator_adaa.py`
+is an offline research comparison, not the shipping processor.
+`tools/benchmark_saturator.py [older.clap]` measures the actual CLAP binary serially,
+including dense mid-block automation, multiple instances, mono and exact silence.
+It runs an additional 120-second automated soak with finite-output and C++
+allocation guards. Do not run other builds/tests during timing probes. This
+unpaced desktop host does not certify Bitwig scheduling or instance capacity.
+`tools/saturator_benchmark rate block seconds mode instances` is the lower-level
+engine-only probe; `mode` is default/dense/automated/silence/tail/mono/rounded/asymmetric.
+
+Optional real-recording evaluation: `.venv/bin/python tools/saturator_program_material.py
+/path/to/sqam.zip --baseline /path/to/older-saturator-render` reads a locally
+downloaded EBU SQAM archive using system libsndfile. It checks old/new outputs
+and creates 30 latency-aligned, RMS-matched WAVs plus a source/settings manifest
+under `reports/saturator-cpu/program-material`. Read the EBU R&D-use terms before
+obtaining the archive; neither the recordings nor these renders are shipping
+assets. This numerical check and render preparation do not complete listening QA.
