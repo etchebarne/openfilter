@@ -77,6 +77,7 @@ class Editor {
     int selected_ = -1, hover_ = -1, focused_ = -1, drag_ = -1;
     double mouseX_ = -1, mouseY_ = -1, dragX_ = 0, dragY_ = 0;
     ui::ClickTracker clicks_;
+    ui::ReadoutInteraction readout_;
     double panelFrequency_ = 1000;
     bool panelAbove_ = false;
     Values before_ = defaults();

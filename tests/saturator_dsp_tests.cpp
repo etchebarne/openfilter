@@ -72,6 +72,92 @@ int main() {
         }
         CHECK(maxCurveError < 5e-12);
         std::cout << "Max analytic curve residual: " << maxCurveError << '\n';
+        // New modes must null against the same crossover/FIR path at zero
+        // Drive, including DC and correlated/anti-correlated stereo signals.
+        for (unsigned style : {4u, 5u}) {
+            for (double rate : {1000., 44100., 48000., 96000., 192000., 768000.}) {
+                auto v = defaults();
+                for (unsigned b = 0; b < 3; ++b) {
+                    v[band(b, Style)] = style;
+                    v[band(b, Drive)] = 0;
+                }
+                Engine clean, dry;
+                clean.prepare(rate, v);
+                v[Mix] = 0;
+                dry.prepare(rate, v);
+                for (unsigned n = 0; n < 4096; ++n) {
+                    double a = .17 + .3 * std::sin(n * .173), b = -.7 * a;
+                    double c = a, d = b;
+                    clean.sample(a, b);
+                    dry.sample(c, d);
+                    near(a, c, 2e-14);
+                    near(b, d, 2e-14);
+                }
+            }
+        }
+        // Product regression: Drive must increase harmonics without making a
+        // steady selected band disappear. Measure actual output, not gain math.
+        for (unsigned style = 0; style < styleCount; ++style) {
+            double previousHarmonics = 0;
+            for (double drive : {0., 24.}) {
+                Engine driven;
+                auto values = defaults();
+                values[Compensation] = 100;
+                values[CrossoverLow] = 40;
+                values[CrossoverHigh] = 18000;
+                values[band(1, Solo)] = 1;
+                values[band(1, Style)] = style;
+                values[band(1, Drive)] = drive;
+                driven.prepare(48000, values);
+                double power = 0, sine = 0, cosine = 0;
+                constexpr unsigned count = 4800;
+                for (unsigned n = 0; n < 48000 + count; ++n) {
+                    const double phase = n * 2 * std::numbers::pi / 48;
+                    double l = .25 * std::sin(phase), r = l;
+                    driven.sample(l, r);
+                    if (n >= 48000) {
+                        power += l * l;
+                        sine += l * std::sin(phase);
+                        cosine += l * std::cos(phase);
+                    }
+                }
+                power /= count;
+                near(std::sqrt(power), .25 / std::sqrt(2.), .001);
+                const double fundamentalPower =
+                    2 * (sine * sine + cosine * cosine) / (count * count);
+                const double harmonics = std::sqrt(std::max(0., power - fundamentalPower));
+                if (drive == 0)
+                    previousHarmonics = harmonics;
+                else
+                    CHECK(harmonics > 4 * previousHarmonics && harmonics > .1 * std::sqrt(power));
+            }
+        }
+        // At the new factory compensation of zero, AutoLevel cannot trim
+        // Drive's gain. Check real audio and increasing driven output power.
+        near(defaults()[Compensation], 0);
+        double previousPower = 0;
+        for (double drive : {6., 24.}) {
+            auto v = defaults();
+            for (unsigned b = 0; b < 3; ++b)
+                v[band(b, Drive)] = drive;
+            Engine factory, noMatching;
+            factory.prepare(48000, v);
+            v[AutoLevel] = 0;
+            noMatching.prepare(48000, v);
+            double power = 0;
+            for (unsigned n = 0; n < 24000; ++n) {
+                double l = .1 * std::sin(n * 2 * std::numbers::pi / 48), r = -.7 * l;
+                double a = l, b = r;
+                factory.sample(l, r);
+                noMatching.sample(a, b);
+                near(l, a, 1e-14);
+                near(r, b, 1e-14);
+                if (n >= 12000)
+                    power += l * l;
+            }
+            CHECK(power > previousPower * 2);
+            previousPower = power;
+        }
         // Silent fast path must advance control smoothing identically to an
         // awake engine. A -580 dBFS probe keeps the comparison engine awake.
         Engine quiet, awake;

@@ -5,7 +5,12 @@ namespace openfilter::saturator {
 // control ramps during silence, overlapping style fades, crossed crossovers,
 // tone/dynamics changes and independently driven stereo channels.
 template <class Sink> void regressionAudio(Engine &engine, double rate, Sink sink) {
-    engine.prepare(rate, defaults());
+    auto values = defaults();
+    values[AutoLevel] = 0;
+    values[Compensation] = 100;
+    for (unsigned b = 0; b < 3; ++b)
+        values[band(b, Style)] = 0;
+    engine.prepare(rate, values);
     for (unsigned n = 0; n < 8192; ++n) {
         if (n % 117 == 25) {
             const double t = std::sin(n * .01);

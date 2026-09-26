@@ -73,6 +73,7 @@ int main(int argc, char **argv) {
     editor.key(PUGL_KEY_ESCAPE, 0);
     r = editor.controlBounds(Attack);
     editor.press(r.x + 30, r.y + r.h - 12, 0, 0, 2);
+    editor.release(0, 0);
     editor.input("12.5 ms");
     if (!render("entry.png", 1120, 720))
         return 1;

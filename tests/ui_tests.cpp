@@ -1,5 +1,6 @@
 #include "Editor.hpp"
 #include "Engine.hpp"
+#include "ReadoutTest.hpp"
 #include "Response.hpp"
 #include "Test.hpp"
 #include <iostream>
@@ -326,8 +327,44 @@ void panelFollowsNodeDrag() {
         CHECK(editor.panelBounds().y == beforeKnob.y);
     }
 }
+void readoutTests() {
+    for (unsigned i :
+         {1u, eq::index(0, eq::Frequency), eq::index(0, eq::Gain), eq::index(0, eq::Q)}) {
+        const auto p = eq::parameter(i);
+        const double initial = (p.min + p.max) * .5;
+        const bool freq = i == eq::index(0, eq::Frequency), q = i == eq::index(0, eq::Q);
+        const double value = freq ? std::log2(2000.) : q ? std::log2(2.5) : 3.;
+        readoutTest<eq::Editor, eq::EditorState, ui::AnalysisTap>(
+            i, initial,
+            freq ? "2000 Hz"
+            : q  ? "2.5"
+                 : "3 dB",
+            value, p.initial,
+            [](eq::Editor &e, eq::EditorState &s, double &t) {
+                s.values[eq::index(0, eq::Enabled)] = 1;
+                s.effective = s.values;
+                ++s.stateSerial;
+                e.tick();
+                const auto g = e.graphBounds();
+                const double x =
+                    g.x + g.w * std::log(std::exp2(s.values[eq::index(0, eq::Frequency)]) / 10) /
+                              std::log(3000.);
+                e.press(x, g.y + g.h / 2, 0, 0, t);
+                e.release(0, 0);
+                t += 1;
+            },
+            [i, freq, q](eq::Editor &e) {
+                if (i == 1)
+                    return ui::Rect{e.width() / e.scale() - 180, e.height() / e.scale() - 32, 150,
+                                    24};
+                const auto r = e.controlBounds(freq ? 1 : q ? 3 : 2);
+                return ui::Rect{r.x, r.y + 121, r.w, 26};
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         responseTest();
         spectrumTest();
         brickwallResponse();

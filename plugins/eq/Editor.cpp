@@ -393,6 +393,7 @@ void Editor::remember() {
     redo_.clear();
 }
 void Editor::finishGesture() {
+    readout_.reset();
     if (gesture_.empty())
         return;
     for (auto i : gesture_)
@@ -573,6 +574,7 @@ void Editor::input(std::string_view textValue) {
 }
 
 void Editor::press(double x, double y, unsigned button, unsigned mods, double time) {
+    readout_.reset();
     mouseX_ = x;
     mouseY_ = y;
     if (help_) {
@@ -740,13 +742,17 @@ void Editor::press(double x, double y, unsigned button, unsigned mods, double ti
                                   : control(f == Frequency ? 1
                                             : f == Gain    ? 2
                                                            : 3);
-        if (button == 1 || (field != 1 && y >= r.y + 120) || (field == 1 && x > r.x + 78) ||
-            (mods & PUGL_MOD_CTRL)) {
+        if (button == 1 || (mods & PUGL_MOD_CTRL)) {
             textEdit(field);
             return;
         }
         if (button != 0)
             return;
+        if ((field != 1 && y >= r.y + 120) || (field == 1 && x > r.x + 78)) {
+            finishGesture();
+            readout_.press(field, x, y);
+            return;
+        }
         begin({static_cast<unsigned>(field)});
         drag_ = field;
         dragX_ = x;
@@ -789,7 +795,10 @@ void Editor::press(double x, double y, unsigned button, unsigned mods, double ti
     invalidate();
 }
 void Editor::release(double, double) {
+    const int edit = readout_.release();
     finishGesture();
+    if (edit >= 0)
+        textEdit(edit);
     invalidate();
 }
 void Editor::motion(double x, double y, unsigned mods) {
@@ -797,6 +806,15 @@ void Editor::motion(double x, double y, unsigned mods) {
     mouseX_ = x;
     mouseY_ = y;
     hover_ = hitNode(x, y);
+    if (readout_.motion(x, y, [&](unsigned i, double startX, double startY) {
+            begin({i});
+            drag_ = int(i);
+            dragX_ = startX;
+            dragY_ = startY;
+        })) {
+        invalidate();
+        return;
+    }
     if (drag_ >= 1000) {
         const unsigned b = drag_ - 1000;
         const auto g = graph();
@@ -1009,7 +1027,7 @@ void Editor::paint(cairo_t *c, double width, double height) {
                            "Double-click a control           Reset to its default",
                            "Double-click a node              Reset frequency, gain + Q",
                            "Click a value / right-click      Type an exact value",
-                           "Shift + drag                          Fine adjustment",
+                           "Drag values / Shift                 Adjust / fine adjustment",
                            "Alt + click node                    Enable / disable band",
                            "Delete / Ctrl + Z                    Remove / undo",
                            "Tab, then Enter                     Focus / edit value",

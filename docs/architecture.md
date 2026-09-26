@@ -208,3 +208,20 @@ neither CLAP nor UI. The limiter's existing half-band primitive is now shared;
 its arithmetic and the limiter's sound are unchanged. The native spectrum-led
 editor reuses the analyzer, materials, concurrency/state bridge and approved
 S wordmark. See saturator-plan.md for schema 1, IDs, semantics and qualification.
+
+Saturator 0.2 appends Auto level (ID 43) and writes schema 2. Its independent
+engine adds stereo-linked per-band power matching before tone and level, fixing
+the default Drive-induced attenuation. Schema-1 sessions retain the original
+gain law with Auto level Off. No new latency, oversampling change or runtime
+dependency is introduced. See saturator-drive.md for measured behavior and limits.
+
+Saturator 0.3 appends style enum values 4/5 (Punch/Color), with Punch the factory
+default. Schema 3 keeps 44 parameters and reads schemas 1/2 without changing
+stored style/gain choices. The bounded, clean-at-zero excitation and new-mode
+matcher fade are specified in [saturator-research.md](saturator-research.md).
+
+As of Saturator 0.3.1, Compensation defaults to zero. The AutoLevel mode flag is
+still on for new instances, but zero amount leaves the driven gain untrimmed.
+Saved values in schemas 1–3 are not migrated to the new default. The suite-wide
+`ReadoutInteraction` helper distinguishes pending exact-entry clicks from relative
+drags; each editor retains ownership of parameter mapping, undo and host gestures.

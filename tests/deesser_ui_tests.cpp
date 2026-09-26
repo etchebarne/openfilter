@@ -1,11 +1,35 @@
 #include "Editor.hpp"
+#include "ReadoutTest.hpp"
 #include "Test.hpp"
 #include <cairo.h>
 #include <fontconfig/fontconfig.h>
 #include <iostream>
 using namespace openfilter::deesser;
+void readoutTests() {
+    for (unsigned i = 0; i < parameterCount; ++i) {
+        const auto p = parameter(i);
+        if (p.stepped)
+            continue;
+        const double initial = denormalized(i, .35), value = denormalized(i, .45);
+        readoutTest<Editor, EditorState, MeterTap>(
+            i, initial, std::to_string(value), value, p.initial,
+            [i](Editor &e, EditorState &s, double &t) {
+                (void)i;
+                (void)e;
+                (void)s;
+                (void)t;
+            },
+            [i](Editor &e) {
+                const auto r = e.controlBounds(i);
+                if (r.h <= 28)
+                    return r;
+                return openfilter::ui::Rect{r.x, r.y + r.h - 23, r.w, 20};
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         {
             MeterTap tap;
             tap.reset(1000); // Five samples per waveform slice.

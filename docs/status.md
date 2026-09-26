@@ -1,5 +1,145 @@
 # Project status — 2026-09-25
 
+## Suite readout dragging and Saturator default — 0.3.1
+
+**Implemented:** Saturator Drive comp. now defaults to 0% for new instances,
+Default preset and descriptor resets. Its driven output is untrimmed at that
+amount; Auto level remains available when compensation is raised. Saved schemas
+1–3 keep their exact stored compensation, and explicitly authored non-default
+preset amounts remain intact. No parameter IDs, units or schema changed in 0.3.1.
+Historical measurement helpers explicitly select their former 100% amount.
+
+All seven editors now support click/release to type and vertical dragging on
+continuous numeric readouts, including footer trims, slider values, crossovers
+and EQ/reverb inspectors. A shared five-logical-pixel threshold ignores jitter.
+Shift adjusts finely without jumping; double-click resets; drag release never
+opens entry. Each drag remains one undo step and a balanced host gesture. Help
+and suite conventions explain the behavior.
+
+**Tested:** all 28 release and all 28 ASan/UBSan CTest suites passed, including actual-editor readout
+coverage at 0.75× / 1× / 2×, compact/normal sizes, fine drag, undo/redo, exact entry,
+reset and pending-click cancellation. All seven native X11 hosts pass readout
+automation through zero-capacity and partial event queues. Actual-audio tests
+confirm zero compensation removes matching gain and higher Drive increases
+output power; schema-1/2/3 recall retains stored 100% compensation. Saturator
+clap-validator: 36 passed, zero failures/warnings, eight optional skips, all five
+retained fuzz seeds passed. Normal, compact, 2×, menu, Help and entry renders were
+inspected for every editor, plus the EQ 24-band view. No build warnings; Python
+compilation, C++ formatting and diff checks pass. All four saturator measurement
+scripts passed: legacy audio reference, quality/alias convergence, adaptive
+Drive matching and calibrated characters. The character sweep retains
+−104.27 dBc worst tested alias residue and 1.35e-10 reference peak error at its
+explicit research settings.
+
+Installed all seven project CLAPs into `~/.clap`, with byte-for-byte build/install
+hash agreement; manifests and validation logs are in `reports/readout-drag`.
+Saturator build/install SHA-256:
+`631674721e654528d0605778d05dc407b9757971cde683880c44887b9c71eba6`.
+
+**Pending:** actual Bitwig automation and
+listening confirmation for this update. No DAW project was changed. Restart the
+plugin process to load the installed binaries; existing instances retain their
+saved compensation, while new instances use zero.
+
+## Saturator source investigation and calibrated voices — 0.3.0
+
+**Implemented:** studied pinned Airwindows Drive, Density, PurestDrive, Tube2
+and ToTape6 source, CHOW Tape's hysteresis processor/solvers and DAFx paper,
+plus official Saturn, Decapitator and IVGI documentation. Added original Punch
+and Color voices with stronger onset on quiet input, a bounded excitation law,
+and an exactly clean zero-Drive endpoint. Punch is the new factory style;
+Color emphasizes even harmonics. Existing style IDs 0–3 retain their audio;
+4/5 are appended. Schema 3 keeps 44 parameters and recalls schemas 1/2. Help
+shows v0.3; the style menu and transfer glyphs include the new voices.
+
+**Tested:** all 28 release CTest suites passed; affected UI/native-host tests
+passed after the Help update, and state tests passed after additional schema-3
+round-trip/old-schema rejection coverage. All four saturator ASan/UBSan suites
+passed. An initial contract-test run used a stale sanitizer plugin; rebuilding
+it resolved that failure. Added explicit CMake dependencies so targeted host-test
+builds also rebuild the artifact they load. External clap-validator passed
+36 checks, zero failures/warnings, eight optional skips and all five retained
+fuzz seeds. All three prior saturator measurement scripts passed.
+
+The new actual-audio measurement covers 240 old/new character cases, 96
+new-mode alias cases through maximum Drive, and 18 independent references.
+Worst new-mode settled level drift: 0.00319 dB. Worst tested audible-band alias
+residue: −104.27 dBc. Independent reference peak error: 1.35e-10. At −24 dBFS
+input / 12 dB Drive, approximately 1 kHz, THD is −45.84 dB for Soft, −31.20 dB
+for Punch and −15.13 dB for Color. Greater THD is not a quality rating.
+24 stereo renders compared against the retained 0.2 binary differ by at most
+8.33e-16 for old styles in both gain modes. Original 0.1 automation fixtures pass.
+
+Rendered 36 level-matched SQAM files, including actual pinned Airwindows Drive
+and Density double-precision source outputs, plus a dry/Punch/Color bass audition.
+Their source settings are illustrative, not equivalent distortion settings.
+Inspected saturator normal, compact, 2×, style menu and Help, plus EQ normal,
+compact, 2×, menu and 24-band views. Python compilation, formatting and diff
+checks pass. Sources, manifests and reports are in `reports/saturator-research`;
+[the research document](saturator-research.md) gives the exact definitions and limits.
+
+Actual-CLAP paired runs at 48 kHz/64 frames, editor closed, median single-core
+CPU: default 10.59% → 10.83%; mono 5.83% → 5.90%; silence 0.219% → 0.229%.
+Two-minute Color and six-style/all-control automation runs use 12.71% / 29.64%
+CPU. Thread maxima are 402 / 944 µs versus a 1333 µs buffer period, but measured
+wall-clock deadline exceedances are **13 / 29** (maxima 3.26 / 5.41 ms).
+These unpaced synthetic-host runs do not establish dropout-free Bitwig operation.
+
+Installed only `~/.clap/OpenFilterSaturator.clap`; build/install SHA-256:
+`851e39f1c16ca026d6a8d68cafc9cce916eea33e979a4df7381b78734307f796`.
+
+**Pending:** user listening judgment and representative Bitwig sessions, including
+CPU scheduling, automation/recall, transients and level-matcher adaptation. No
+proprietary sound match or completed professional qualification is claimed.
+Existing projects keep old styles; select Punch/Color with Auto level On to
+adopt the new behavior after restarting the plugin process.
+
+## Saturator Drive correction — 0.2.0
+
+**Implemented:** reproduced the reported band-level drop: the original default
+inverse-drive compensation kept subtracting gain after saturation stopped the
+wet signal growing. A −12 dBFS test tone fell from −15.15 to −24.79 dBFS RMS
+when Drive moved from 0 to 24 dB. Added default-on stereo-linked Auto level,
+with DC-aware power detection before tone/mix/Level and smoothed gain. Existing
+32× oversampling, curves and 76-sample latency are retained. The new footer
+switch exposes the change explicitly. ID 43 is appended; schema 2 stores it.
+Schema-1 sessions load with Auto level Off and preserve their old sound.
+
+**Tested:** all 28 release suites and all four saturator ASan/UBSan suites pass;
+native tests used DISPLAY=:0 without skips. State migration/re-save and actual
+legacy audio pass, as do new sample-offset mode-change/partition tests and
+gesture/default-reset coverage. External clap-validator: 36 passes, zero
+failures/warnings, eight unsupported optional checks skipped; all five retained
+fuzz seeds pass. Original independent measurement and 576-case quality scripts
+pass with Auto level explicitly Off.
+
+The new measurement script covers 240 Drive/level cases (worst settled drift
+0.00649 dB; minimum harmonic-energy growth at 24 dB Drive 13.36 dB), 96
+high-frequency alias cases (worst audible residue −102.77 dBc), and twelve
+independent tone/dynamics/audio references (peak error 2.23e-10). Loud/quiet/
+pause/restart errors settle below 0.003 dB; anti-phase channel error is zero;
+zero compensation matches the original untrimmed audio. Rendered 30 updated
+EBU SQAM audition files with manifests under `reports/saturator-drive/listening`.
+These were measured, not human-listening qualified. Inspected saturator normal,
+compact, 2×, menu and Help, plus the required EQ normal/compact/2×/menu/24-band
+views. Formatting, Python compilation and diff checks pass.
+
+Paired actual-CLAP probes at 48 kHz/64 frames, editor closed: median default
+stereo 9.68% → 10.41% of one core; mono 4.98% → 5.67%. Two-minute dense
+automation: 22.15% CPU, 400.26 µs p99 wall, 859.63 µs maximum, zero measured
+deadline exceedances. Timing remains unpaced synthetic-host evidence.
+
+Installed only `/home/martin/.clap/OpenFilterSaturator.clap`; build/installed
+SHA-256: `31b403f3882dabb36159e75030c55ce6922ab0ebb1ef016add5be40d394a0ee2`.
+Details and raw-record locations: [saturator-drive.md](saturator-drive.md).
+
+**Pending:** Bitwig and controlled musical listening, including adaptation on
+transients and changing envelopes. Auto level is a power matcher, not an
+instantaneous/perceptual loudness guarantee or peak limiter. Extreme-drive
+aliasing remains; compensation does not remove it. Existing instances require
+a fresh plugin process and Auto level On to opt into the corrected behavior.
+No existing DAW project was modified.
+
 ## Saturator CPU and quality investigation — 0.1.1
 
 **Implemented:** optimized polyphase histories, batched oversampling stages,

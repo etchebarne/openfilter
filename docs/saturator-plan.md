@@ -10,7 +10,8 @@ and 4 kHz. Spectrum-led editor: draggable crossover boundaries and band levels,
 selected-band drive, style, dynamics, four tone controls, mix, level, enable,
 solo and mute. Global input/output, mix, bypass and drive compensation. A/B,
 undo, presets, exact entry, double-click descriptor reset and host modulation.
-Four original smooth waveshapers: Soft, Rounded, Dense and Asymmetric. These
+Four legacy smooth waveshapers: Soft, Rounded, Dense and Asymmetric. Version
+0.3 adds calibrated Punch and Color, with Punch the factory default. These
 are mathematical voicings, not measured tape/tube/transformer emulations.
 
 ## DSP contract
@@ -29,9 +30,10 @@ style weights ramp over 10 ms in samples, not blocks. Toggle/solo transitions
 are ramped too. Stereo-linked dynamics, independent channel waveshaper histories.
 No audio-thread allocation, locks, logging, GUI, files or unbounded work.
 
-Drive is pre-gain, 0–36 dB. Compensation continuously scales inverse drive,
-0–100%; at 100% the small-signal gain remains unity. This is deterministic gain
-compensation, not a loudness matcher. Nonlinear DC is removed only from the
+Drive is pre-gain, 0–36 dB. New instances use Auto level, described below.
+With Auto level Off, Compensation continuously scales inverse drive, 0–100%;
+at 100% the small-signal gain remains unity. That historical mode retains its
+level loss under strong saturation for compatibility. Nonlinear DC is removed only from the
 wet-minus-dry residual with a 5 Hz blocker, preserving the dry response.
 Tone: low shelf 160 Hz, bell 800 Hz, bell 3 kHz, high shelf 8 kHz, Q=sqrt(.5),
 ±12 dB. Tone and dynamics are inside the wet path. Dynamics uses a linked
@@ -40,11 +42,16 @@ between expansion and compression. No feedback oscillator in this milestone.
 
 ## Permanent state
 
-Plugin ID org.openfilter.saturator; magic OFSTSTAT; schema 1.
+Plugin ID org.openfilter.saturator; magic OFSTSTAT; schema 3 (schemas 1/2 supported).
 Global IDs 0–6: bypass, output dB, input dB, global mix %, lower/upper crossover
 Hz, drive compensation %. Band IDs start at 7 with stride 12: enabled, style
-(0 Soft, 1 Rounded, 2 Dense, 3 Asymmetric), drive dB, mix %, level dB, dynamics
-%, bass/mid/treble/presence dB, solo, mute. 43 parameters total; descriptor table is canonical.
+(0 Soft, 1 Rounded, 2 Dense, 3 Asymmetric, 4 Punch, 5 Color), drive dB, mix %, level dB, dynamics
+%, bass/mid/treble/presence dB, solo, mute. Appended global ID 43 is Auto level
+(Off/On, default On). 44 parameters total; descriptor table is canonical.
+Schema 1 has 43 values and migrates with Auto level Off, preserving prior audio.
+Schemas 2/3 store all 44 values. Schema 3 extends Style to 0–5 and changes its
+factory default to Punch; old states retain explicit stored values. See the
+0.3 source study for the calibrated transfer definitions.
 State stores base values only; transient modulation and DSP histories are not
 serialized. Main/audio handoff and UI gesture retry follow existing plugins.
 
@@ -126,3 +133,43 @@ with zero detector, crossover, resampler, tone, DC and delay histories. It still
 advances every parameter/style ramp. It does not truncate a quiet tail, and the
 adapter continues processing callbacks. See saturator-quality.md for experiments,
 CPU results, passband definitions and remaining production qualification.
+
+## 0.2.0 level-balanced Drive
+
+Auto level On removes inverse-drive attenuation before the wet FIR and measures
+per-band power before tone. Four cascaded 20 ms one-poles smooth linked input
+power and wet power. Separate four-pole wet means per channel are squared and
+linked, then smoothed to estimate DC power; subtraction prevents Asymmetric's
+DC from corrupting the RMS match. The reference is matched dry times the linked
+dynamics gain, so intentional dynamics attenuation is not simply canceled.
+
+Gain target is sqrt(input power / max(0, wet power − DC power)), bounded to
+[1e-4, 16], raised to Compensation/100. Another 20 ms one-pole smooths this gain,
+applied before tone, residual DC rejection, band mix and Level. At near-silence
+(both powers ≤1e-24), initialize to inverse-drive gain; do not amplify noise to a
+fixed target. Detector states flush only below 1e-30 and participate in the
+exact-zero sleep check. Gain itself is held through silence, with quiet startup
+reinitialization on the next processed sample. All storage/work is fixed.
+
+The mode value ramps over the existing 10 ms timeline. In transitions, the
+pre-FIR inverse-drive gain blends toward unity while the output matching gain
+blends in. Auto level Off is regression-covered against the original fixtures.
+The matcher adapts to program dynamics over a few tenths of a second; it is not
+a transparent envelope-preservation claim or an instantaneous loudness meter.
+See saturator-drive.md for the defect reproduction, actual-audio tests and limits.
+
+## 0.3.0 calibrated character
+
+Punch/Color extend the style list with a bounded excitation law, clean zero
+Drive and stronger onset on quiet stems. Old styles are preserved; all new
+instances default to Punch. See [source study, exact DSP and measured gates](saturator-research.md).
+
+## 0.3.1 default and interaction correction
+
+New instances and descriptor resets use Compensation = 0%, leaving driven gain
+untrimmed. AutoLevel remains On but has no gain-matching effect at this amount.
+Explicit preset compensation and saved schemas 1–3 retain their stored values;
+there is no ID, unit, enumeration or state-schema change. Historical audio
+fixtures and independent reference renders explicitly request 100% compensation.
+All suite numeric readouts now distinguish a click on release from a vertical
+drag after five logical pixels, with Shift fine adjustment and balanced gestures.

@@ -1,11 +1,41 @@
 #include "Editor.hpp"
+#include "ReadoutTest.hpp"
 #include "Test.hpp"
 #include <cairo.h>
 #include <fontconfig/fontconfig.h>
 #include <iostream>
 using namespace openfilter::compressor;
+void readoutTests() {
+    for (unsigned i = 0; i < parameterCount; ++i) {
+        const auto p = parameter(i);
+        if (p.stepped)
+            continue;
+        const double initial = denormalized(i, .35), value = denormalized(i, .45);
+        readoutTest<Editor, EditorState, MeterTap>(
+            i, initial, std::to_string(value), value, p.initial,
+            [i](Editor &e, EditorState &s, double &t) {
+                (void)i;
+                (void)e;
+                (void)s;
+                (void)t;
+                auto r = e.viewBounds(1);
+                e.press(r.x + 10, r.y + 10, 0, 0, t);
+                e.release(0, 0);
+                t += 1;
+            },
+            [i](Editor &e) {
+                const auto r = e.controlBounds(i);
+                if (r.h == 46 || r.h == 64)
+                    return openfilter::ui::Rect{r.x + r.w * .6, r.y + 5, r.w * .3, 20};
+                if (r.h == 28)
+                    return r;
+                return openfilter::ui::Rect{r.x, r.y + r.h - 23, r.w, 20};
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         {
             EditorState state;
             MeterTap tap;

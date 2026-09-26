@@ -1,4 +1,5 @@
 #include "Editor.hpp"
+#include "ReadoutTest.hpp"
 #include "Test.hpp"
 #include <fontconfig/fontconfig.h>
 #include <iostream>
@@ -49,8 +50,55 @@ void historyTests() {
     CHECK(h.update(frame));
     near(h.age(first), 1024. / frame.rate, 1e-12);
 }
+void readoutTests() {
+    for (unsigned i = 0; i < parameterCount; ++i) {
+        const auto p = parameter(i);
+        if (p.stepped)
+            continue;
+        const double initial = denormalized(i, .35), value = denormalized(i, .45);
+        readoutTest<Editor, EditorState, openfilter::ui::AnalysisTap>(
+            i, initial, std::to_string(value), value, p.initial,
+            [i](Editor &e, EditorState &s, double &t) {
+                (void)i;
+                (void)e;
+                (void)s;
+                (void)t;
+                if (i == PredelayOffset) {
+                    s.values[PredelaySync] = s.effective[PredelaySync] = 1;
+                    e.tick();
+                }
+                if (i >= globals) {
+                    const bool post = i >= globals + bands * fields;
+                    const unsigned b = (i - globals) / fields % bands;
+                    const unsigned base = bandIndex(post, b, 0);
+                    s.values[base + Enabled] = s.effective[base + Enabled] = 1;
+                    e.tick();
+                    const auto view = e.viewBounds(post ? 1 : 0);
+                    e.press(view.x + 10, view.y + 10, 0, 0, t);
+                    e.release(0, 0);
+                    t += 1;
+                    const auto g = e.graphBounds();
+                    const double x =
+                        g.x + g.w * std::log(s.values[base + Frequency] / 20) / std::log(1000.);
+                    const double n = post ? (s.values[base + Amount] + 24) / 48
+                                          : std::log2(s.values[base + Amount] / 25) / 4;
+                    const double y = g.y + g.h * (1 - n);
+                    e.press(x, y, 0, 0, t);
+                    e.release(x, y);
+                    t += 1;
+                }
+            },
+            [i](Editor &e) {
+                const auto r = e.controlBounds(i);
+                if (r.h <= 30)
+                    return r;
+                return e.valueBounds(i);
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         historyTests();
         {
             EditorState state;

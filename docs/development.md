@@ -278,3 +278,23 @@ and creates 30 latency-aligned, RMS-matched WAVs plus a source/settings manifest
 under `reports/saturator-cpu/program-material`. Read the EBU R&D-use terms before
 obtaining the archive; neither the recordings nor these renders are shipping
 assets. This numerical check and render preparation do not complete listening QA.
+
+
+Saturator 0.2 adds `tools/measure_saturator_drive.py`: output-level/harmonic-growth
+regressions, independent Auto-level audio reference, high-frequency alias matrix,
+anti-phase stereo and quiet/loud/pause/restart checks. Run it after DSP changes.
+The earlier measurement scripts explicitly select Auto level Off to retain their
+0.1 reference equations. The program-material tool selects legacy gain when a
+baseline renderer is supplied, and the corrected mode for normal audition packs.
+
+Saturator 0.3 also requires `python tools/measure_saturator_character.py`.
+`python tools/research_saturators.py --sources /path/to/SQAM/flacs` builds a
+pinned offline Airwindows source harness and private R&D audition WAVs under
+ignored reports; it does not install other plugins. See saturator-research.md.
+
+Suite readout changes must exercise all seven actual editors with
+`tests/ReadoutTest.hpp`: click/release entry, movement threshold, vertical drag,
+Shift changes without jumps, undo/redo, descriptor reset and cancellation at
+0.75×, 1× and 2× scale. Native GUI-host suites additionally record a footer
+readout drag through a zero-capacity output queue, then accept its begin/value/end
+across separate flushes. A pending click must not emit a host gesture.

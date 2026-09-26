@@ -68,6 +68,7 @@ int main(int argc, char **argv) {
     e.key(PUGL_KEY_ESCAPE, 0);
     r = e.controlBounds(Low);
     e.press(r.x + 30, r.y + 12, 0, 0, 2);
+    e.release(0, 0);
     e.input("5.5 kHz");
     if (!render("entry.png", 1120, 720))
         return 1;

@@ -1,11 +1,41 @@
 #include "Editor.hpp"
+#include "ReadoutTest.hpp"
 #include "Test.hpp"
 #include <cairo.h>
 #include <fontconfig/fontconfig.h>
 #include <iostream>
 using namespace openfilter::saturator;
+void readoutTests() {
+    for (unsigned i = 0; i < parameterCount; ++i) {
+        const auto p = parameter(i);
+        if (p.stepped)
+            continue;
+        const double initial = denormalized(i, .35), value = denormalized(i, .45);
+        readoutTest<Editor, EditorState, openfilter::ui::AnalysisTap>(
+            i, initial, std::to_string(value), value, p.initial,
+            [i](Editor &e, EditorState &s, double &t) {
+                (void)i;
+                (void)e;
+                (void)s;
+                (void)t;
+                if (i >= globals && i < legacyParameterCount) {
+                    auto r = e.viewBounds((i - globals) / stride);
+                    e.press(r.x + 10, r.y + 10, 0, 0, t);
+                    e.release(0, 0);
+                    t += 1;
+                }
+            },
+            [i](Editor &e) {
+                const auto r = e.controlBounds(i);
+                if (i < globals)
+                    return r;
+                return openfilter::ui::Rect{r.x, r.y + r.h - 23, r.w, 20};
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         {
             EditorState state;
             openfilter::ui::AnalysisTap tap;
@@ -34,7 +64,7 @@ int main() {
             };
             // Every control resets from non-default values, including selectors/readouts.
             for (unsigned i = 0; i < parameterCount; ++i) {
-                if (i >= globals) {
+                if (i >= globals && i < legacyParameterCount) {
                     const auto tab = e.viewBounds((i - globals) / stride);
                     e.press(tab.x + 10, tab.y + 10, 0, 0, time);
                     e.release(0, 0);
@@ -62,6 +92,13 @@ int main() {
                 time += .6;
             };
             select(1);
+            // Last row must be reachable in both normal and compact layouts.
+            click(band(1, Style));
+            const auto styleControl = e.controlBounds(band(1, Style));
+            e.press(styleControl.x + 20, styleControl.y - 42 + 18, 0, 0, time);
+            e.release(0, 0);
+            time += .6;
+            near(state.values[band(1, Style)], 5);
             click(band(1, Drive), 40, 1);
             e.input("12.5 dB");
             e.key(PUGL_KEY_ENTER, 0);

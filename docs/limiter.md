@@ -113,3 +113,8 @@ these checks. Use only a new scratch project, never an existing DAW project.
 For the current acceptance pass, use the [Bitwig/listening handoff](limiter-testing.md).
 The previous 0.2 binary is preserved under
 `reports/limiter-0.3/OpenFilterLimiter-0.2.0.clap` outside the plugin scan directory.
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

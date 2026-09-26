@@ -1,10 +1,36 @@
 #include "Editor.hpp"
+#include "ReadoutTest.hpp"
 #include "Test.hpp"
 #include <fontconfig/fontconfig.h>
 #include <iostream>
 using namespace openfilter::limiter;
+void readoutTests() {
+    for (unsigned i = 0; i < parameterCount; ++i) {
+        const auto p = parameter(i);
+        if (p.stepped)
+            continue;
+        const double initial = denormalized(i, .35), value = denormalized(i, .45);
+        readoutTest<Editor, EditorState, MeterTap>(
+            i, initial, std::to_string(value), value, p.initial,
+            [i](Editor &e, EditorState &s, double &t) {
+                (void)i;
+                (void)e;
+                (void)s;
+                (void)t;
+            },
+            [i](Editor &e) {
+                const auto r = e.controlBounds(i);
+                if (i == Gain)
+                    return e.gainReadoutBounds();
+                if (i == Ceiling)
+                    return r;
+                return openfilter::ui::Rect{r.x, r.y + r.h - 20, r.w, 18};
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         {
             EditorState state;
             MeterTap tap;

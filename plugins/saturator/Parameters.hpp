@@ -33,9 +33,14 @@ enum Field : unsigned {
 constexpr unsigned band(unsigned b, unsigned f) {
     return globals + b * stride + f;
 }
-constexpr unsigned parameterCount = globals + 3 * stride;
+constexpr unsigned styleCount = 6;
+constexpr unsigned legacyParameterCount = globals + 3 * stride;
+constexpr unsigned AutoLevel = legacyParameterCount;
+constexpr unsigned parameterCount = legacyParameterCount + 1;
 using Values = std::array<double, parameterCount>;
 inline Parameter parameter(unsigned i) {
+    if (i == AutoLevel)
+        return {AutoLevel, "Auto level", 0, 1, 1, true, false};
     static constexpr std::array<Parameter, globals> global{
         {{0, "Bypass", 0, 1, 0, true, false},
          {1, "Output", -24, 24, 0, false, true},
@@ -43,10 +48,10 @@ inline Parameter parameter(unsigned i) {
          {3, "Mix", 0, 100, 100, false, true},
          {4, "Low crossover", 40, 4000, 250, false, true},
          {5, "High crossover", 200, 18000, 4000, false, true},
-         {6, "Compensation", 0, 100, 100, false, true}}};
+         {6, "Compensation", 0, 100, 0, false, true}}};
     static constexpr std::array<Parameter, stride> fields{
         {{0, "Enabled", 0, 1, 1, true, false},
-         {0, "Style", 0, 3, 0, true, false},
+         {0, "Style", 0, styleCount - 1, 4, true, false},
          {0, "Drive", 0, 36, 6, false, true},
          {0, "Band mix", 0, 100, 100, false, true},
          {0, "Level", -24, 24, 0, false, true},
@@ -93,12 +98,12 @@ inline const char *unit(unsigned i) {
         return "%";
     return parameter(i).stepped ? "" : "dB";
 }
-inline constexpr const char *styles[]{"Soft", "Rounded", "Dense", "Asymmetric"};
+inline constexpr const char *styles[]{"Soft", "Rounded", "Dense", "Asymmetric", "Punch", "Color"};
 inline void format(unsigned i, double v, char *out, size_t size) {
     if (parameter(i).stepped) {
         std::snprintf(out, size, "%s",
                       i >= globals && (i - globals) % stride == Style
-                          ? styles[unsigned(std::clamp(v, 0., 3.))]
+                          ? styles[unsigned(std::clamp(v, 0., double(styleCount - 1)))]
                       : v ? "On"
                           : "Off");
         return;
@@ -121,7 +126,7 @@ inline bool parse(unsigned i, std::string_view s, double &v) {
         s.remove_suffix(1);
     if (parameter(i).stepped) {
         if (i >= globals && (i - globals) % stride == Style) {
-            for (unsigned k = 0; k < 4; ++k)
+            for (unsigned k = 0; k < styleCount; ++k)
                 if (s == styles[k]) {
                     v = k;
                     return true;

@@ -81,6 +81,7 @@ int main(int argc, char **argv) {
     e.key(PUGL_KEY_ESCAPE, 0);
     r = e.valueBounds(Space);
     e.press(r.x + 30, r.y + 15, 0, 0, 2);
+    e.release(0, 0);
     e.input("3.20 s");
     if (!render("entry.png", 1120, 720))
         return 1;

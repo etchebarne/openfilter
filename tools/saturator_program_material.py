@@ -115,10 +115,14 @@ def main():
             configurations = [('dry', {3: 0})]
             for style, label in enumerate(('soft', 'rounded', 'dense', 'asymmetric')):
                 drive = 24 if style == 3 else 12
-                params = {7+b*12+1: style for b in range(3)} | {7+b*12+2: drive for b in range(3)}
+                params = {6: 100} | {7+b*12+1: style for b in range(3)} | {7+b*12+2: drive for b in range(3)}
                 configurations.append((f'{label}-{drive}dB', params))
             for label, params in configurations:
-                raw = render(binary, padded, rate, params)
+                # Historical comparisons explicitly retain the pre-0.2 gain
+                # law; matched auditions use adaptive matching at 100%.
+                # Both override the newer 0% factory compensation default.
+                current_params = {43: 0 if args.baseline else 1, **params}
+                raw = render(binary, padded, rate, current_params)
                 residual = None
                 if args.baseline:
                     old = render(args.baseline.resolve(), padded, rate, params)
@@ -130,7 +134,7 @@ def main():
                 aligned = raw[76:76+len(audio)]
                 rms = float(np.sqrt(np.mean(aligned**2)))
                 peak = float(np.max(np.abs(resample_poly(aligned, 4, 1, axis=0))))
-                outputs.append((label, params, aligned, rms, peak, residual))
+                outputs.append((label, current_params, aligned, rms, peak, residual))
             # All five audition files share RMS, with peak safety decided jointly.
             target = min(10**(-24/20), *(rms * 10**(-.5/20) / peak for _, _, _, rms, peak, _ in outputs))
             row['matched_rms_dbfs'] = db(target)

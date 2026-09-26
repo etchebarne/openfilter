@@ -77,6 +77,7 @@ class Editor {
     double dragX_ = 0, dragY_ = 0, mouseX_ = -1, mouseY_ = -1;
     std::string input_;
     ui::ClickTracker clicks_;
+    ui::ReadoutInteraction readout_;
     Values before_ = defaults();
     std::vector<Values> undo_, redo_;
     std::array<Values, 2> comparisons_{defaults(), defaults()};

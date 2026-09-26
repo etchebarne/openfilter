@@ -1,11 +1,32 @@
 #include "Editor.hpp"
+#include "ReadoutTest.hpp"
 #include "Test.hpp"
 #include <cairo.h>
 #include <fontconfig/fontconfig.h>
 #include <iostream>
 using namespace openfilter::gate;
+void readoutTests() {
+    for (unsigned i = 0; i < parameterCount; ++i) {
+        const auto p = parameter(i);
+        if (p.stepped)
+            continue;
+        const double initial = denormalized(i, .35), value = denormalized(i, .45);
+        readoutTest<Editor, EditorState, MeterTap>(
+            i, initial, std::to_string(value), value, p.initial,
+            [](Editor &, EditorState &, double &) {},
+            [i](Editor &e) {
+                const auto r = e.controlBounds(i);
+                if (r.h == 54)
+                    return openfilter::ui::Rect{r.x + r.w * .5, r.y + 3, r.w * .4, 20};
+                if (r.h == 28)
+                    return r;
+                return openfilter::ui::Rect{r.x, r.y + r.h - 23, r.w, 20};
+            });
+    }
+}
 int main() {
     try {
+        readoutTests();
         {
             EditorState state;
             MeterTap tap;

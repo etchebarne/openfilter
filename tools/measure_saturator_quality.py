@@ -8,6 +8,10 @@ from pathlib import Path
 import numpy as np
 from scipy import signal
 from saturator_reference import render, band, split, curve, response_metrics, RENDER
+_render_current = render
+def render(x, rate=48000, params=None):
+    return _render_current(x, rate, {43: 0, **(params or {})})
+
 REPORT = Path(__file__).resolve().parents[1] / 'reports/saturator-cpu'
 REPORT.mkdir(parents=True, exist_ok=True)
 metrics = {'binary_sha256': hashlib.sha256(RENDER.read_bytes()).hexdigest(), 'alias_cases': [], 'response': [], 'convergence': []}

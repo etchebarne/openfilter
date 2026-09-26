@@ -65,3 +65,8 @@ for filtered audition and silence-based suspension is not yet implemented.
 UI views, A/B and local undo persist only for the editor session; audio parameters
 are saved in independent checksummed schema 1. Existing effects' sound/state is
 unchanged.
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

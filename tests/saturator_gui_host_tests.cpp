@@ -261,6 +261,62 @@ int main(int argc, char **argv) {
             near(resetValue, 6.);
             out.balanced();
             tick();
+            // Drag an actual numeric readout while the host rejects output
+            // events. Pointer jitter emits no gesture; retry preserves B/V/E.
+            {
+                out.count = 0;
+                out.capacity = 0;
+                time += 500;
+                constexpr unsigned readoutId = saturator::Output;
+                double beforeReadout = 0, afterReadout = 0;
+                CHECK(params->get_value(p, readoutId, &beforeReadout));
+                auto move = [&](int x, int y) {
+                    XEvent event{};
+                    event.xmotion.type = MotionNotify;
+                    event.xmotion.display = display;
+                    event.xmotion.window = child;
+                    event.xmotion.root = root;
+                    event.xmotion.x = x;
+                    event.xmotion.y = y;
+                    event.xmotion.state = Button1Mask;
+                    event.xmotion.same_screen = True;
+                    event.xmotion.time = time + 20;
+                    CHECK(XSendEvent(display, child, False, PointerMotionMask, &event));
+                    tick();
+                };
+                button(ButtonPress, 920, 696);
+                move(920 + 1, 698);
+                out.capacity = 512;
+                realtime = true;
+                params->flush(p, nullptr, &out.out);
+                realtime = false;
+                CHECK(out.count == 0);
+                out.capacity = 0;
+                move(920, 708);
+                button(ButtonRelease, 920, 708);
+                realtime = true;
+                params->flush(p, nullptr, &out.out);
+                realtime = false;
+                CHECK(out.count == 0);
+                CHECK(params->get_value(p, readoutId, &afterReadout));
+                CHECK(afterReadout < beforeReadout);
+                out.capacity = 1;
+                realtime = true;
+                params->flush(p, nullptr, &out.out);
+                realtime = false;
+                CHECK(out.count == 1 &&
+                      out.events[0].header.type == CLAP_EVENT_PARAM_GESTURE_BEGIN);
+                out.capacity = 512;
+                realtime = true;
+                params->flush(p, nullptr, &out.out);
+                realtime = false;
+                CHECK(out.count == 3 && out.events[1].header.type == CLAP_EVENT_PARAM_VALUE &&
+                      out.events[2].header.type == CLAP_EVENT_PARAM_GESTURE_END);
+                for (unsigned n = 0; n < out.count; ++n)
+                    CHECK(out.events[n].param_id == readoutId);
+                out.balanced();
+                tick();
+            }
             // Close with an unfinished numeric drag: the host must still receive its end.
             out.count = 0;
             time += 500;

@@ -300,6 +300,7 @@ void Editor::change(unsigned i, double value) {
     invalidate();
 }
 void Editor::finishGesture() {
+    readout_.reset();
     if (drag_ < 0)
         return;
     send_(UiKind::End, drag_, 0);
@@ -374,6 +375,7 @@ void Editor::commitText() {
     cancelText();
 }
 void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double time) {
+    readout_.reset();
     mouseX_ = x;
     mouseY_ = y;
     const int target = hit(x, y);
@@ -484,15 +486,14 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
             once(target, 1 - model_.values[target]);
             return;
         }
-        if (target == Ceiling ||
+        if ((target == Gain && gainReadoutBounds().contains(x, y)) || target == Ceiling ||
             (target != Gain &&
              y > r.y + ((target == StereoLink || target == ReleaseLink) ? 88 : 106))) {
-            textEdit(target);
+            finishGesture();
+            readout_.press(target, x, y);
             return;
         }
         begin(target);
-        gainReadoutPressed_ = target == Gain && gainReadoutBounds().contains(x, y);
-        gainTravel_ = 0;
         dragX_ = x;
         dragY_ = y;
         return;
@@ -501,19 +502,26 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         send_(UiKind::ClearClip, 0, 0);
 }
 void Editor::release(double, double) {
-    const bool editGain = drag_ == Gain && gainReadoutPressed_ && gainTravel_ <= 3;
+    const int edit = readout_.release();
     finishGesture();
-    if (editGain)
-        textEdit(Gain);
+    if (edit >= 0)
+        textEdit(edit);
     invalidate();
 }
 void Editor::motion(double x, double y, unsigned mods) {
     mouseX_ = x;
     mouseY_ = y;
     clicks_.motion(x, y);
+    if (readout_.motion(x, y, [&](unsigned i, double startX, double startY) {
+            begin(i);
+            dragX_ = startX;
+            dragY_ = startY;
+        })) {
+        invalidate();
+        return;
+    }
     if (drag_ >= 0) {
         const double delta = dragY_ - y;
-        gainTravel_ += std::abs(delta) + std::abs(x - dragX_);
         const double sensitivity = drag_ == Gain ? 1 / (controlBounds(Gain).h - 50) : .005;
         change(drag_,
                denormalized(drag_, normalized(drag_, model_.values[drag_]) +
@@ -833,7 +841,7 @@ void Editor::paint(cairo_t *cr, double width, double height) {
         theme::raised(cr, r, 12, true);
         text(cr, "Limiter controls", r.x + 24, r.y + 34, 15, ink, true);
         const char *lines[]{
-            "Drag the gain handle or a knob vertically. Shift adjusts finely.",
+            "Drag knobs or readouts vertically. Shift adjusts finely.",
             "Double-click any value to reset its descriptor default.",
             "Click a value or right-click a control for exact entry.",
             "Tab focuses controls; Enter edits; arrows adjust; Esc cancels.",

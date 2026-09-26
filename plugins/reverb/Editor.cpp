@@ -342,6 +342,7 @@ void Editor::change(unsigned i, double value) {
     invalidate();
 }
 void Editor::finishGesture() {
+    readout_.reset();
     if (drag_ < 0)
         return;
     send_(UiKind::End, drag_, 0);
@@ -425,6 +426,7 @@ void Editor::commitText() {
     cancelText();
 }
 void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double time) {
+    readout_.reset();
     mouseX_ = x;
     mouseY_ = y;
     const int target = hit(x, y), node = nodeAt(x, y);
@@ -538,7 +540,8 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         }
         const auto r = controlBounds(target);
         if (r.h <= 30 || (unsigned(target) < globals && valueBounds(target).contains(x, y))) {
-            textEdit(target);
+            finishGesture();
+            readout_.press(target, x, y);
             return;
         }
         begin(target);
@@ -596,13 +599,24 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
     invalidate();
 }
 void Editor::release(double, double) {
+    const int edit = readout_.release();
     finishGesture();
+    if (edit >= 0)
+        textEdit(edit);
     invalidate();
 }
 void Editor::motion(double x, double y, unsigned mods) {
     mouseX_ = x;
     mouseY_ = y;
     clicks_.motion(x, y);
+    if (readout_.motion(x, y, [&](unsigned i, double startX, double startY) {
+            begin(i);
+            dragY_ = startY;
+            (void)startX;
+        })) {
+        invalidate();
+        return;
+    }
     if (drag_ >= 0) {
         if (nodeDrag_ >= 0) {
             const auto g = graphBounds();
@@ -953,7 +967,7 @@ void Editor::paint(cairo_t *cr, double width, double height) {
         theme::raised(cr, r, 12, true);
         text(cr, "Reverb controls", r.x + 24, r.y + 34, 16, ink, true);
         const char *lines[]{
-            "Drag knobs; Shift is fine. Click readouts for exact entry.",
+            "Drag knobs or readouts; Shift is fine. Click readouts to type.",
             "Double-click restores the descriptor default. Tab / Enter / arrows edit.",
             "Choose Decay Rate EQ or Post EQ, then click the canvas to add a band.",
             "Drag nodes for frequency and amount; scroll for Q. Delete removes.",

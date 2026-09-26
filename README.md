@@ -6,7 +6,7 @@ shared native CLAP integration foundation.
 
 Next effect: multiband compressor.
 
-Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, **De-Esser alpha (0.1.0)**, **Gate alpha (0.1.0)**, and **Saturator alpha (0.1.1)**.
+Status: **EQ editor alpha (0.3.3)** and **Compressor alpha (0.1.2)**, **Limiter qualification candidate (0.3.0)**, **Reverb alpha (0.2.0)**, **De-Esser alpha (0.1.0)**, **Gate alpha (0.1.0)**, and **Saturator alpha (0.3.1)**.
 The [compressor](docs/compressor.md) adds Peak/RMS detection, knee/range,
 hold, auto release, stereo linking, internal/external sidechain with detector HP,
 0–10 ms lookahead, parallel mix, gain-reduction history and transfer-curve editing.
@@ -52,9 +52,12 @@ materials and G wordmark. See the [gate guide](docs/gate.md) and
 Build output: `build/release/plugins/OpenFilterGate.clap`. Install only this
 effect with `bash tools/install-gate-local.sh`.
 
-**Saturator alpha (0.1.1):** Three bands with phase-compensated crossovers,
-four original saturation curves, up to 32× oversampling, per-band drive/mix,
-linked dynamics, four tone filters, solo/mute and global drive compensation.
+**Saturator alpha (0.3.1):** Three bands with phase-compensated crossovers,
+six saturation voices, including calibrated Punch/Color, up to 32× oversampling, per-band drive/mix,
+linked dynamics, four tone filters, solo/mute and stereo-linked automatic level
+compensation. New instances start with Punch and Drive comp. at 0%; Punch/Color reach stronger saturation
+on quieter stems and start clean at zero Drive. Saved sessions retain their voices.
+See the [source study and listening comparisons](docs/saturator-research.md).
 The spectrum-led editor follows Saturn's workflow with suite materials and the
 approved S wordmark. See the [guide and qualification limits](docs/saturator.md)
 and [audio contract](docs/saturator-plan.md). Bitwig, listening, and further real-time qualification remain pending; the optimized engine retains the
@@ -90,7 +93,7 @@ bash tools/install-local.sh
 Output: `build/release/plugins/OpenFilterEQ.clap`. Local install: `~/.clap/OpenFilterEQ.clap`.
 In Bitwig, load **OpenFilter EQ**, open its editor, and click empty graph space
 to create a band. Drag for frequency/gain; scroll for Q. Double-click value controls to reset;
-click a numeric readout for exact entry. For an ultra-steep cut, select Low Cut
+click a numeric readout for exact entry or drag it vertically to adjust (Shift for fine movement), consistently across all seven effects. For an ultra-steep cut, select Low Cut
 or High Cut and choose **Brickwall** from its slope menu. Restart the plugin
 process or Bitwig after replacing an already loaded binary. See the
 [editor guide](docs/editor.md) for controls and display conventions. The [development guide](docs/development.md) covers toolchain

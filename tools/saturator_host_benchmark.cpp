@@ -81,6 +81,9 @@ int main(int argc, char **argv) {
                 initial.add(band(b, Bass), 6);
                 initial.add(band(b, Presence), -3);
             }
+        if (mode == "color")
+            for (unsigned b = 0; b < 3; ++b)
+                initial.add(band(b, Style), 5);
         params->flush(p, &initial.input, nullptr);
         if (mode == "mono") {
             const auto *config = static_cast<const clap_plugin_audio_ports_config *>(
@@ -119,7 +122,7 @@ int main(int argc, char **argv) {
             events.add(CrossoverHigh, 6000 + phase * 3000, offset);
             for (unsigned b = 0; b < 3; ++b) {
                 events.add(band(b, Drive), 18 + phase * 15, offset);
-                events.add(band(b, Style), (at / block) % 4, offset);
+                events.add(band(b, Style), (at / block) % styleCount, offset);
                 events.add(band(b, Dynamics), phase * 90, offset);
                 for (unsigned t = 0; t < 4; ++t)
                     events.add(band(b, Bass + t), phase * 10, offset);

@@ -280,6 +280,7 @@ void Editor::change(unsigned i, double value) {
     invalidate();
 }
 void Editor::finishGesture() {
+    readout_.reset();
     if (drag_ < 0)
         return;
     send_(UiKind::End, drag_, 0);
@@ -355,6 +356,7 @@ void Editor::commitText() {
     cancelText();
 }
 void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double time) {
+    readout_.reset();
     mouseX_ = x;
     mouseY_ = y;
     const int target = hit(x, y);
@@ -471,7 +473,8 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         }
         if ((r.h == 174 && y > r.y + 145) || (r.h == 102 && y > r.y + 77) || r.h == 26 ||
             r.h == 28) {
-            textEdit(target);
+            finishGesture();
+            readout_.press(target, x, y);
             return;
         }
         begin(target);
@@ -483,13 +486,24 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         send_(UiKind::ClearClip, 0, 0);
 }
 void Editor::release(double, double) {
+    const int edit = readout_.release();
     finishGesture();
+    if (edit >= 0)
+        textEdit(edit);
     invalidate();
 }
 void Editor::motion(double x, double y, unsigned mods) {
     mouseX_ = x;
     mouseY_ = y;
     clicks_.motion(x, y);
+    if (readout_.motion(x, y, [&](unsigned i, double startX, double startY) {
+            begin(i);
+            dragX_ = startX;
+            dragY_ = startY;
+        })) {
+        invalidate();
+        return;
+    }
     if (drag_ >= 0) {
         if (bandDrag_) {
             const auto b = bandBounds();
@@ -840,7 +854,7 @@ void Editor::paint(cairo_t *cr, double width, double height) {
         const Rect r{width * .5 - 280, 110, 560, 270};
         theme::raised(cr, r, 12, true);
         text(cr, "De-Esser controls", r.x + 24, r.y + 34, 15, ink, true);
-        const char *lines[]{"Drag a knob vertically. Shift makes fine adjustments.",
+        const char *lines[]{"Drag knobs or readouts vertically. Shift makes fine adjustments.",
                             "Double-click any value to reset its descriptor default.",
                             "Click a value or right-click a control for exact entry.",
                             "Tab focuses controls; Enter edits; arrows adjust; Esc cancels.",

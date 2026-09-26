@@ -29,6 +29,8 @@ jobs:
           .venv/bin/python tools/measure_gate.py
           .venv/bin/python tools/measure_saturator.py
           .venv/bin/python tools/measure_saturator_quality.py
+          .venv/bin/python tools/measure_saturator_drive.py
+          .venv/bin/python tools/measure_saturator_character.py
           .venv/bin/python tools/measure_limiter.py
           .venv/bin/python tools/measure_limiter_quality.py
           bash tools/build-validator.sh

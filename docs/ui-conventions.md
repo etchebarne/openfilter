@@ -14,8 +14,13 @@ must send balanced CLAP begin/value/end gestures and participate in local undo.
 Do not use double-click for numeric entry anywhere in the suite.
 
 Click a numeric readout, right-click its control, Ctrl-click it, or focus it and
-press Enter to type a value. Enter commits, Escape cancels. Knobs use vertical
-relative dragging and support scrolling; Shift makes changes finer without
+press Enter to type a value. A primary click opens entry on release; moving more
+than five logical pixels instead starts a vertical relative drag on the same
+readout. Up increases, down decreases. Pointer jitter sends no host gesture,
+a drag never opens entry on release, and focus loss cancels a pending click.
+This applies to every continuous numeric field in all seven plugins, including
+footer trims and contextual inspectors. Enter commits, Escape cancels.
+Knobs use vertical relative dragging and support scrolling; Shift makes changes finer without
 jumping when the modifier changes during a drag. Units and logarithmic parameter
 mappings must match the host parameter contract.
 

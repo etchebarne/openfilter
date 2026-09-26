@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
                 e->set(CrossoverHigh, 6000 + phase * 3000);
                 for (unsigned b = 0; b < 3; ++b) {
                     e->set(band(b, Drive), 18 + phase * 15);
-                    e->set(band(b, Style), (at / blockSize) % 4);
+                    e->set(band(b, Style), (at / blockSize) % styleCount);
                     e->set(band(b, Dynamics), phase * 90);
                     for (unsigned t = 0; t < 4; ++t)
                         e->set(band(b, Bass + t), phase * 10);

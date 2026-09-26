@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
 
     r = editor.controlBounds(Release);
     editor.press(r.x + 30, r.y + 108, 0, 0, 2);
+    editor.release(0, 0);
     editor.input("250 ms");
     if (!render("entry.png", 1120, 720))
         return 1;

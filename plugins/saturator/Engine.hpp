@@ -1,4 +1,5 @@
 #pragma once
+#include "Character.hpp"
 #include "Curves.hpp"
 #include "Parameters.hpp"
 #include "Resampling.hpp"
@@ -52,8 +53,18 @@ class Engine {
         Cascade wet;
         MatchedDry dry;
         std::array<dsp::Filter, 4> tone{};
+        std::array<double, 4> balanceMean{};
         double dcX = 0, dcY = 0;
     };
+    struct Balance {
+        std::array<double, 4> dryPower{}, wetPower{}, wetMean{};
+        double gain = 1;
+        double process(double dry, double wet, double mean, double pole, double amount,
+                       double initialGain) noexcept;
+        bool silent() const noexcept;
+    };
+    std::array<Balance, 3> balance_{};
+    double balancePole_ = 0;
     bool silent_ = true;
     unsigned silenceCheck_ = 0;
     bool historiesSilent() const noexcept;
@@ -76,7 +87,7 @@ class Engine {
     std::array<std::array<Split, 3>, 2> split_{};
     std::array<std::array<Channel, 2>, 3> channels_{};
     std::array<dsp::Ramp, parameterCount> ramps_{};
-    std::array<std::array<dsp::Ramp, 4>, 3> styles_{};
+    std::array<std::array<dsp::Ramp, styleCount>, 3> styles_{};
     std::array<std::array<dsp::Coefficients, 4>, 3> tone_{};
     std::array<std::array<double, 4>, 3> lastTone_{};
     std::array<double, 4> toneTangent_{};

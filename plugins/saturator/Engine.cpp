@@ -27,6 +27,42 @@ dsp::Coefficients toneCoefficients(unsigned tone, double g, double gainDb) noexc
 }
 } // namespace
 
+double Engine::Balance::process(double dry, double wet, double mean, double pole, double amount,
+                                double initialGain) noexcept {
+    auto follow = [pole](auto &stages, double value) {
+        for (auto &s : stages) {
+            s = pole * s + (1 - pole) * value;
+            if (std::abs(s) < 1e-30)
+                s = 0;
+            value = s;
+        }
+        return value;
+    };
+    const double inputPower = follow(dryPower, dry);
+    const double outputPower = follow(wetPower, wet);
+    const double dcPower = follow(wetMean, mean);
+    // DC estimates are squared separately per channel before linking, so
+    // anti-phase channels cannot cancel. Never normalize noise/silence.
+    const double variance = std::max(0., outputPower - dcPower);
+    if (inputPower <= 1e-24 && outputPower <= 1e-24)
+        gain = initialGain;
+    double target = gain;
+    if (inputPower > 1e-24 && variance > 1e-24) {
+        target = std::clamp(std::sqrt(inputPower / variance), 1e-4, 16.);
+        if (amount != 1)
+            target = std::pow(target, amount);
+    }
+    gain = pole * gain + (1 - pole) * target;
+    return gain;
+}
+bool Engine::Balance::silent() const noexcept {
+    for (const auto &a : {dryPower, wetPower, wetMean})
+        for (double x : a)
+            if (x != 0)
+                return false;
+    return true;
+}
+
 void Engine::prepare(double rate, const Values &v) noexcept {
     silent_ = true;
     silenceCheck_ = 0;
@@ -51,6 +87,8 @@ void Engine::prepare(double rate, const Values &v) noexcept {
         toneTangent_[t] = std::tan(std::numbers::pi * std::min(toneHz[t], rate_ * .4) / rate_);
     attack_ = std::exp(-1 / (rate_ * .01));
     release_ = std::exp(-1 / (rate_ * .1));
+    balancePole_ = std::exp(-1 / (rate_ * .02));
+    balance_ = {};
     split_ = {};
     dry_ = {};
     envelope_ = {};
@@ -59,13 +97,16 @@ void Engine::prepare(double rate, const Values &v) noexcept {
     for (unsigned i = 0; i < parameterCount; ++i)
         ramps_[i].reset(parameter(i).constrain(v[i]));
     for (unsigned b = 0; b < 3; ++b) {
+        balance_[b].gain =
+            std::pow(10., -ramps_[band(b, Drive)].value * ramps_[Compensation].value * .01 / 20.);
         lastTone_[b].fill(1e9);
-        for (unsigned s = 0; s < 4; ++s)
+        for (unsigned s = 0; s < styleCount; ++s)
             styles_[b][s].reset(s == unsigned(ramps_[band(b, Style)].value) ? 1 : 0);
         for (auto &c : channels_[b]) {
             c.wet.prepare();
             c.dry.reset();
             c.tone = {};
+            c.balanceMean = {};
             c.dcX = c.dcY = 0;
         }
     }
@@ -76,7 +117,7 @@ void Engine::set(unsigned i, double value) noexcept {
     value = parameter(i).constrain(value);
     ramps_[i].set(value, smoothing_);
     if (i >= globals && (i - globals) % stride == Style)
-        for (unsigned s = 0; s < 4; ++s)
+        for (unsigned s = 0; s < styleCount; ++s)
             styles_[(i - globals) / stride][s].set(s == unsigned(value) ? 1 : 0, smoothing_);
 }
 bool Engine::historiesSilent() const noexcept {
@@ -86,6 +127,9 @@ bool Engine::historiesSilent() const noexcept {
     auto filterSilent = [](const auto &f) { return f.s1 == 0 && f.s2 == 0; };
     if (!zero(envelope_))
         return false;
+    for (const auto &b : balance_)
+        if (!b.silent())
+            return false;
     for (const auto &channel : split_)
         for (const auto &split : channel)
             for (unsigned n = 0; n < 2; ++n)
@@ -94,6 +138,8 @@ bool Engine::historiesSilent() const noexcept {
     for (const auto &band : channels_)
         for (const auto &c : band) {
             if (c.dcX != 0 || c.dcY != 0)
+                return false;
+            if (!zero(c.balanceMean))
                 return false;
             for (const auto &f : c.tone)
                 if (!filterSilent(f))
@@ -174,14 +220,17 @@ void Engine::sample(double &l, double &r, bool mono) noexcept {
             lastCompensation_[b] = p[Compensation];
             compensationGain_[b] = std::pow(drive, -p[Compensation] * .01);
         }
-        const double gain = compensationGain_[b], bandGain = bandGain_[b].get(p[band(b, Level)]);
+        const double autoLevel = p[AutoLevel];
+        const double gain = compensationGain_[b] + autoLevel * (1 - compensationGain_[b]);
+        const double bandGain = bandGain_[b].get(p[band(b, Level)]);
         const double wet = p[band(b, BandMix)] * .01, enable = p[band(b, Enabled)];
         const double audible = (1 - p[band(b, Mute)]) * std::min(1., 1 - solo + p[band(b, Solo)]);
-        double weights[4]{};
-        for (unsigned s = 0; s < 4; ++s)
+        double weights[styleCount]{};
+        const Character character(drive);
+        for (unsigned s = 0; s < styleCount; ++s)
             weights[s] = styles_[b][s].next();
         int singleStyle = -1;
-        for (unsigned s = 0; s < 4; ++s)
+        for (unsigned s = 0; s < styleCount; ++s)
             if (weights[s] == 1)
                 singleStyle = int(s);
         for (unsigned t = 0; t < 4; ++t)
@@ -189,19 +238,65 @@ void Engine::sample(double &l, double &r, bool mono) noexcept {
                 lastTone_[b][t] = p[band(b, Bass + t)];
                 tone_[b][t] = toneCoefficients(t, toneTangent_[t], lastTone_[b][t]);
             }
+        double wetBand[2]{}, dryBand[2]{};
         for (unsigned c = 0; c < channelCount; ++c) {
             auto &state = channels_[b][c];
             auto process = [&](double x) {
+                const auto voice = [&](unsigned style) {
+                    if (style >= 4)
+                        return character.process(style, x * dynamicGain, [&](double v) {
+                            return (*curves_)(0, v);
+                        }) * gain;
+                    return (*curves_)(style, x * dynamicGain * drive) * gain;
+                };
                 if (singleStyle >= 0)
-                    return (*curves_)(unsigned(singleStyle), x * dynamicGain * drive) * gain;
+                    return voice(unsigned(singleStyle));
                 double y = 0;
-                for (unsigned s = 0; s < 4; ++s)
+                for (unsigned s = 0; s < styleCount; ++s)
                     if (weights[s] > 0)
-                        y += weights[s] * (*curves_)(s, x * dynamicGain * drive) * gain;
+                        y += weights[s] * voice(s);
                 return y;
             };
-            double y = state.wet.process(bands[b][c], factor_, process);
-            const double x = state.dry.process(bands[b][c], dryKernel_, delay - padding_);
+            wetBand[c] = state.wet.process(bands[b][c], factor_, process);
+            dryBand[c] = state.dry.process(bands[b][c], dryKernel_, delay - padding_);
+        }
+        double autoGain = 1;
+        if (autoLevel != 0) {
+            double inputPower = 0, outputPower = 0, dcPower = 0;
+            for (unsigned c = 0; c < channelCount; ++c) {
+                inputPower += dryBand[c] * dryBand[c] * dynamicGain * dynamicGain;
+                outputPower += wetBand[c] * wetBand[c];
+                auto &dc = channels_[b][c].balanceMean;
+                double mean = wetBand[c];
+                for (auto &s : dc) {
+                    s = balancePole_ * s + (1 - balancePole_) * mean;
+                    if (std::abs(s) < 1e-30)
+                        s = 0;
+                    mean = s;
+                }
+                dcPower += mean * mean;
+            }
+            const double matched = balance_[b].process(
+                inputPower / channelCount, outputPower / channelCount, dcPower / channelCount,
+                balancePole_, p[Compensation] * .01, compensationGain_[b]);
+            // New voices become exactly clean at zero Drive. Fade the matcher
+            // out near that point, including during style automation, rather
+            // than letting a DC estimate change the otherwise linear signal.
+            double balanceAmount = 0;
+            for (unsigned s = 0; s < styleCount; ++s)
+                balanceAmount += weights[s] * (s < 4 ? 1 : std::min(1., character.depth));
+            autoGain += autoLevel * (compensationGain_[b] - 1 +
+                                     balanceAmount * (matched - compensationGain_[b]));
+        } else {
+            balance_[b] = {};
+            balance_[b].gain = compensationGain_[b];
+            for (auto &state : channels_[b])
+                state.balanceMean = {};
+        }
+        for (unsigned c = 0; c < channelCount; ++c) {
+            auto &state = channels_[b][c];
+            double y = wetBand[c] * autoGain;
+            const double x = dryBand[c];
             // Tone is linear: host-rate processing avoids 32x redundant filter work.
             // Both audio paths have identical FIR filtering and group delay.
             for (unsigned t = 0; t < 4; ++t)

@@ -106,3 +106,8 @@ bands with non-default values reappear on reopening; an entirely default,
 disabled slot is treated as empty. Only Linux X11 embedding is implemented.
 Bitwig playback, automation recording, project recall and prolonged listening
 still require validation in a scratch session.
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

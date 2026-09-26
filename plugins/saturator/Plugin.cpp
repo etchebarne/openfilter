@@ -27,7 +27,7 @@ const clap_plugin_descriptor descriptor{CLAP_VERSION,
                                         "",
                                         "",
                                         "",
-                                        "0.1.1",
+                                        "0.3.1",
                                         "Three-band saturation with up to 32x oversampling",
                                         features};
 
@@ -452,7 +452,7 @@ class Plugin final : public Base {
         info->max_value = p.max;
         info->default_value = p.initial;
         std::snprintf(info->name, sizeof(info->name), "%s", p.name);
-        if (i >= globals)
+        if (i >= globals && i < legacyParameterCount)
             std::snprintf(info->module, sizeof(info->module), "Band %u",
                           (i - globals) / stride + 1);
 
@@ -500,6 +500,7 @@ class Plugin final : public Base {
         if (!i) {
             for (unsigned k = 0; k < globals; ++k)
                 p->param_ids[k] = k;
+            p->param_ids[7] = AutoLevel;
         } else {
             const unsigned fields[]{Drive,    Style, BandMix,  Level,
                                     Dynamics, Bass,  Presence, Enabled};
@@ -516,7 +517,7 @@ class Plugin final : public Base {
             return false;
         std::array<uint8_t, stateSize> data{};
         std::memcpy(data.data(), "OFSTSTAT", 8);
-        plugin::put32(data.data() + 8, 1);
+        plugin::put32(data.data() + 8, 3);
         plugin::put32(data.data() + 12, parameterCount);
         for (unsigned i = 0; i < parameterCount; ++i) {
             plugin::put32(data.data() + 16 + i * 12, parameter(i).id);
@@ -527,19 +528,29 @@ class Plugin final : public Base {
     }
     bool stateLoad(const clap_istream *stream) noexcept override {
         std::array<uint8_t, stateSize> data{};
-        if (!plugin::readAll(stream, data.data(), data.size()) ||
-            std::memcmp(data.data(), "OFSTSTAT", 8) || plugin::get32(data.data() + 8) != 1 ||
-            plugin::get32(data.data() + 12) != parameterCount ||
-            plugin::get32(data.data() + stateSize - 4) !=
-                plugin::checksum(data.data(), stateSize - 4))
+        if (!plugin::readAll(stream, data.data(), 16) || std::memcmp(data.data(), "OFSTSTAT", 8))
+            return false;
+        const auto version = plugin::get32(data.data() + 8);
+        const auto count = plugin::get32(data.data() + 12);
+        if (!((version == 1 && count == legacyParameterCount) ||
+              ((version == 2 || version == 3) && count == parameterCount)))
+            return false;
+        const size_t size = 16 + count * 12 + 4;
+        if (!plugin::readAll(stream, data.data() + 16, size - 16) ||
+            plugin::get32(data.data() + size - 4) != plugin::checksum(data.data(), size - 4))
             return false;
         Snapshot s{};
+        s.values = defaults();
+        if (version == 1)
+            s.values[AutoLevel] = 0; // Preserve original session audio and automation.
         s.serial = requested_.serial + 1;
-        for (unsigned i = 0; i < parameterCount; ++i) {
+        for (unsigned i = 0; i < count; ++i) {
             const auto p = parameter(i);
             const double v = std::bit_cast<double>(plugin::get64(data.data() + 20 + i * 12));
             if (plugin::get32(data.data() + 16 + i * 12) != p.id || !std::isfinite(v) ||
                 v < p.min || v > p.max || (p.stepped && v != std::trunc(v)))
+                return false;
+            if (version < 3 && i >= globals && (i - globals) % stride == Style && v > 3)
                 return false;
             s.values[i] = v;
         }

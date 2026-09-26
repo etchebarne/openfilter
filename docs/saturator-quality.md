@@ -1,5 +1,10 @@
 # Saturator 0.1.1 — CPU and audio investigation
 
+**Historical gain mode:** 0.2.0 corrects the Drive-induced level drop through
+Auto level, while preserving this mode for old sessions. The measurements below
+describe 0.1.1 / Auto level Off. See [the Drive correction](saturator-drive.md)
+for the new default's behavior and validation.
+
 The optimized engine retains the original four transfer functions, 32× processing
 at 44.1/48 kHz, the five FIR designs, 76-sample latency, sample-based smoothing
 and schema-1 sessions. The measured speedup comes from reducing repeated work.

@@ -74,11 +74,11 @@ class Editor {
                                           lastTick_ = lastAudio_;
     int drag_ = -1, focused_ = Gain, editing_ = -1, menu_ = -1;
     bool help_ = false, selectAll_ = false, inputError_ = false;
-    bool advancedVisible_ = true, gainReadoutPressed_ = false;
-    double gainTravel_ = 0;
+    bool advancedVisible_ = true;
     double dragX_ = 0, dragY_ = 0, mouseX_ = -1, mouseY_ = -1;
     std::string input_;
     ui::ClickTracker clicks_;
+    ui::ReadoutInteraction readout_;
     Values before_ = defaults();
     std::vector<Values> undo_, redo_;
     std::array<Values, 2> comparisons_{defaults(), defaults()};

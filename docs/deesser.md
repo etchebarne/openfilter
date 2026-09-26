@@ -93,3 +93,8 @@ in a new scratch project, and worst-callback profiling. Automated agreement
 establishes implementation correctness for the stated cases; it does not certify
 FabFilter parity or production readiness. See [status](status.md) for completed
 checks and their measured limits.
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

@@ -82,3 +82,8 @@ The control reference is FabFilter's official
 [main controls](https://www.fabfilter.com/help/pro-r/using/maincontrols),
 [Decay Rate EQ](https://www.fabfilter.com/help/pro-r/using/decayrateEQ), and
 [Post EQ](https://www.fabfilter.com/help/pro-r/using/postEQ) documentation.
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

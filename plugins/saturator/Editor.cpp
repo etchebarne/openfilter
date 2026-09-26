@@ -284,7 +284,7 @@ Rect Editor::viewBounds(unsigned b) const {
     return {p.x + b * (width + 12), logicalHeight_ - 105, width, 48};
 }
 bool Editor::available(unsigned i) const {
-    return i < globals || (i - globals) / stride == selected_;
+    return i < globals || i == AutoLevel || (i - globals) / stride == selected_;
 }
 Rect Editor::controlBounds(unsigned i) const {
     const auto p = panelBounds();
@@ -296,12 +296,16 @@ Rect Editor::controlBounds(unsigned i) const {
             std::clamp(frequencyX(crossover(CrossoverHigh)) - 45, left + 96, g.x + g.w - 90);
         return {i == CrossoverLow ? left : right, 80, 90, 26};
     }
-    if (i < globals) {
+    if (i < globals || i == AutoLevel) {
         if (i == Bypass)
             return {logicalWidth_ - 124, logicalHeight_ - 38, 106, 28};
-        const unsigned col = i == Input ? 0 : i == Mix ? 1 : i == Compensation ? 2 : 3;
-        return {24 + col * (logicalWidth_ - 166) / 4., logicalHeight_ - 38,
-                (logicalWidth_ - 166) / 4. - 18, 28};
+        const unsigned col = i == Input          ? 0
+                             : i == Mix          ? 1
+                             : i == Compensation ? 2
+                             : i == AutoLevel    ? 3
+                                                 : 4;
+        return {24 + col * (logicalWidth_ - 166) / 5., logicalHeight_ - 38,
+                (logicalWidth_ - 166) / 5. - 18, 28};
     }
     const unsigned b = (i - globals) / stride, f = (i - globals) % stride;
     if (b != selected_)
@@ -321,7 +325,8 @@ Rect Editor::controlBounds(unsigned i) const {
 }
 Rect Editor::menuBounds() const {
     const auto r = menu_ == 100 ? headerBounds(0) : controlBounds(menu_);
-    return {r.x, menu_ == 100 ? r.y + r.h + 8 : r.y - 150, 200, menu_ == 100 ? 180. : 144.};
+    return {r.x, menu_ == 100 ? r.y + r.h + 8 : r.y - (36 * styleCount + 6), 200,
+            menu_ == 100 ? 180. : 36. * styleCount};
 }
 int Editor::hit(double x, double y) const {
     for (unsigned i = 0; i < parameterCount; ++i)
@@ -351,6 +356,7 @@ void Editor::change(unsigned i, double value) {
     invalidate();
 }
 void Editor::finishGesture() {
+    readout_.reset();
     if (drag_ < 0)
         return;
     send_(UiKind::End, drag_, 0);
@@ -427,6 +433,7 @@ void Editor::commitText() {
 }
 
 void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double time) {
+    readout_.reset();
     mouseX_ = x;
     mouseY_ = y;
     const int target = hit(x, y);
@@ -494,7 +501,7 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         }
     if (target >= 0) {
         focused_ = target;
-        if (target >= int(globals))
+        if (target >= int(globals) && target < int(legacyParameterCount))
             selected_ = (target - globals) / stride;
         const auto r = controlBounds(target);
         if (buttonId != 0 || (mods & PUGL_MOD_CTRL)) {
@@ -512,7 +519,8 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         }
         const bool graph = graphBounds().contains(x, y) && !r.contains(x, y);
         if (!graph && (target < int(globals) || (r.h > 80 && y >= r.y + r.h - 25))) {
-            textEdit(target);
+            finishGesture();
+            readout_.press(target, x, y);
             return;
         }
         begin(target);
@@ -536,13 +544,24 @@ void Editor::press(double x, double y, unsigned buttonId, unsigned mods, double 
         send_(UiKind::ClearClip, 0, 0);
 }
 void Editor::release(double, double) {
+    const int edit = readout_.release();
     finishGesture();
+    if (edit >= 0)
+        textEdit(edit);
     invalidate();
 }
 void Editor::motion(double x, double y, unsigned mods) {
     mouseX_ = x;
     mouseY_ = y;
     clicks_.motion(x, y);
+    if (readout_.motion(x, y, [&](unsigned i, double startX, double startY) {
+            begin(i);
+            dragX_ = startX;
+            dragY_ = startY;
+        })) {
+        invalidate();
+        return;
+    }
     if (drag_ >= 0) {
         if (graphDrag_ && logarithmic(drag_)) {
             const double delta = (x - dragX_) * ((mods & PUGL_MOD_SHIFT) ? .1 : 1.);
@@ -897,12 +916,16 @@ void Editor::paint(cairo_t *cr, double width, double height) {
         line(cr, cx, cy - 15, cx, cy + 15, dim.alpha(.22));
         const unsigned style = unsigned(model_.values[band(b, Style)]);
         const double drive = std::pow(10., model_.values[band(b, Drive)] / 20);
-        const double extent =
-            std::max(std::abs(shape(style, -drive)), std::abs(shape(style, drive)));
+        const auto transfer = [&](double x) {
+            return style >= 4
+                       ? Character(drive).process(style, x, [](double v) { return std::tanh(v); })
+                       : shape(style, x * drive);
+        };
+        const double extent = std::max(std::abs(transfer(-1)), std::abs(transfer(1)));
         cairo_new_path(cr);
         for (unsigned n = 0; n <= 48; ++n) {
             const double v = n / 24. - 1;
-            const double x = cx + v * 19, y = cy - 14 * shape(style, v * drive) / extent;
+            const double x = cx + v * 19, y = cy - 14 * transfer(v) / extent;
             if (n == 0)
                 cairo_move_to(cr, x, y);
             else
@@ -928,6 +951,9 @@ void Editor::paint(cairo_t *cr, double width, double height) {
         text(cr, i == Compensation ? "Drive comp." : parameter(i).name, r.x, r.y + 18, 10, muted);
         drawValue(cr, {r.x + caption, r.y + 2, r.w - caption, r.h - 4}, i, 11);
     }
+    drawButton(cr, controlBounds(AutoLevel),
+               model_.values[AutoLevel] ? "Auto level: On" : "Auto level: Off",
+               model_.values[AutoLevel]);
     drawButton(cr, controlBounds(Bypass), model_.values[Bypass] ? "Bypassed" : "Bypass",
                model_.values[Bypass]);
     if (menu_ >= 0) {
@@ -935,7 +961,7 @@ void Editor::paint(cairo_t *cr, double width, double height) {
         theme::raised(cr, r, 8, true);
         const char *presets[]{"Default", "Gentle warmth", "Drum density", "Vocal presence",
                               "Parallel colour"};
-        for (unsigned n = 0; n < (menu_ == 100 ? 5u : 4u); ++n) {
+        for (unsigned n = 0; n < (menu_ == 100 ? 5u : styleCount); ++n) {
             const Rect row{r.x + 4, r.y + n * 36 + 2, r.w - 8, 32};
             if (row.contains(mouseX_, mouseY_))
                 theme::well(cr, row, 4);
@@ -952,17 +978,17 @@ void Editor::paint(cairo_t *cr, double width, double height) {
     if (help_) {
         const Rect r{width / 2 - 285, 110, 570, 286};
         theme::raised(cr, r, 12, true);
-        text(cr, "Shape the harmonics", r.x + 24, r.y + 34, 16, ink, true);
+        text(cr, "Shape the harmonics · v0.3.1", r.x + 24, r.y + 34, 16, ink, true);
         const char *lines[]{
             "Select LOW, MID or HIGH. Drag the crossover lines horizontally.",
             "Drag a band handle for level. Solo and Mute isolate bands.",
-            "Drive adds saturation. Compensation trims the added drive gain.",
+            "Drive comp. defaults to zero. Raise it to apply Auto level matching.",
             "Dynamics: left expands, right compresses. Tone shapes the wet signal.",
-            "Double-click restores defaults. Click a readout for exact entry.",
+            "Double-click resets. Click readouts to type; drag vertically to adjust.",
             "Shift drags finely. Tab focuses; Enter edits; arrows adjust; Esc cancels.",
             "A/B compares settings. Ctrl+Z / Ctrl+Shift+Z undo / redo.",
-            "Oversampling stays active. Crossovers rotate phase; bypass does not.",
-            "Meters show sample peaks. Starting points are not loudness matched."};
+            "Punch adds odd harmonics; Color adds even harmonics. Both start clean.",
+            "Older projects keep their styles. Choose Punch or Color to try them."};
         for (unsigned n = 0; n < 9; ++n)
             text(cr, lines[n], r.x + 24, r.y + 65 + n * 22, 11, muted);
     }

@@ -1,4 +1,4 @@
-# OpenFilter Saturator — 0.1.1 alpha
+# OpenFilter Saturator — 0.3.1 alpha
 
 An original three-band saturation processor for Linux / Bitwig, built separately
 as `build/release/plugins/OpenFilterSaturator.clap`. Install just this effect with
@@ -20,11 +20,23 @@ The selected controls are:
   operate after band processing; multiple solos combine. Global Mix can blend
   the full dry signal back into a solo/mute audition.
 - **Style:** Soft (tanh), Rounded (arctangent), Dense (algebraic soft saturation),
-  and Asymmetric (biased tanh with zero-input correction). Original mathematical
-  curves; no claims of tape, tube, transformer or Saturn model matching.
-- **Drive:** 0–36 dB before saturation. **Drive comp.** trims 0–100% of that gain.
-  At 100%, quiet-signal gain stays approximately unity and peaks compress as
-  Drive rises. This is gain compensation, not automatic loudness matching.
+  Asymmetric (biased tanh), **Punch** (calibrated odd harmonics, the default),
+  and **Color** (calibrated even harmonics). Punch/Color start clean at zero Drive
+  and reach stronger saturation earlier on quieter stems. These are mathematical
+  voices, not claims of tape, tube, transformer or Saturn model matching.
+- **Drive:** 0–36 dB before saturation. **Drive comp. defaults to 0%**, leaving
+  the driven level untrimmed. Raising Drive therefore increases level as well as
+  saturation. **Auto level** is enabled for new instances but its matching amount
+  is zero until Drive comp. is raised: 100% matches average band power, with
+  intermediate values applying partial matching. Tone and band Level follow this matching.
+  Matching adapts over roughly a few tenths of a second, can change envelopes,
+  and is neither a peak limiter nor a perceptual/LUFS loudness matcher.
+- **Auto level Off** retains the old inverse-drive law. At 100% Drive comp., it
+  removes every dB added by Drive, which makes saturated bands quieter. Old
+  schema-1 sessions load in this mode to preserve their sound. Turn **Auto level On** in
+  the footer and raise Drive comp. if you want adaptive matching, then save.
+  Existing sessions retain their saved compensation value; this default change
+  does not rewrite them. Double-click Drive comp. to reset it to the new 0% default.
 - **Mix:** blends the band's wet and dry signal. Global Mix blends all bands.
 - **Dynamics:** negative values expand quiet signals; positive values compress
   loud signals. Fixed 10 ms attack / 100 ms release with stereo-linked detection.
@@ -57,13 +69,17 @@ Double-click resets a control to its descriptor default. Click a readout,
 right-click a control, or use Tab then Enter for exact entry. Shift makes drags
 fine; arrow keys and scrolling adjust values. A/B, Copy, undo/redo and five
 starting-point presets are editor-session workflows. Audio parameters, including
-solo/mute, are saved in schema 1. A/B/history/window size are not project state.
+solo/mute and Auto level, are saved in schema 3. Schema-1 sessions load with
+Auto level Off; schema 2 retains its saved mode. Both retain their saved styles.
+Choose Punch or Color to try the new sound. Restart the plugin process after
+installation; Help displays v0.3. A/B/history/window size are not project state.
 
 ## Quality boundary
 
 This is a measured alpha, not a completed studio-release qualification.
 Nonlinear audio runs at **32× oversampling at 44.1/48 kHz**; this setting consumes
-CPU, but 0.1.1 reduces the measured default stereo callback load by about half.
+CPU. Version 0.1.1 reduced the old-mode callback load by about half; 0.2 adds
+a small per-band level detector.
 See [CPU and quality measurements](saturator-quality.md) for the workloads and
 limits. Exact-zero histories take a low-cost path while parameter smoothing
 continues; no noise gate truncates tails. Tail reporting remains conservatively
@@ -74,8 +90,15 @@ at 76 samples. Tone filters and DC rejection run at host rate after matched
 wet/dry downsampling. All parameter changes ramp over 10 ms; style changes blend
 curves. No audio-thread allocations, locks, files or GUI work are used.
 
-The reproducible tests are `tools/measure_saturator.py` and four CTest suites.
-Reports under `reports/saturator` describe the exact stimuli. A −6 dBFS coherent
+The reproducible tests include `tools/measure_saturator_character.py` (new voices),
+`tools/measure_saturator_drive.py` (0.2 voices),
+`tools/measure_saturator.py` / `tools/measure_saturator_quality.py` (legacy recall),
+and four CTest suites. The new mode adds Drive/output-level and harmonic-growth
+gates, stereo/level-step checks, its own alias matrix and an independent audio
+reference. See [the Drive correction](saturator-drive.md).
+See [the source investigation and matched auditions](saturator-research.md) for
+the new voices and their separate full-Drive measurements. Historical
+reports under `reports/saturator` describe the exact stimuli for styles 0–3. A −6 dBFS coherent
 sine test covers four styles at three high frequencies and three drive values.
 At 24 dB drive the worst non-harmonic residue is approximately −106 dBc; at
 36 dB drive it rises to about −55 dBc. These are specific test conditions, not
@@ -95,3 +118,8 @@ M/S processing, user preset files and full screen-reader support remain future
 work. Host CLAP modulation is supported for continuous parameters.
 
 Research sources and permanent IDs are in [saturator-plan.md](saturator-plan.md).
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

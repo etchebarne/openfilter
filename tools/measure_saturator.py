@@ -4,6 +4,10 @@ import json
 import numpy as np
 from scipy import signal
 from saturator_reference import REPORT, render, band, reference, split, curve
+_render_current = render
+def render(x, rate=48000, params=None):
+    return _render_current(x, rate, {43: 0, **(params or {})})
+
 
 metrics = {'reference_peak_error': 0., 'dry_response_error_db': 0., 'alias_cases': []}
 rng = np.random.default_rng(14517)

@@ -106,3 +106,8 @@ stimuli/settings, not a general distortion specification. Use longer timing,
 RMS detection or less reduction when low-frequency cleanliness matters.
 No analog matching, brickwall peak limiting, zero-latency mode, oversampling,
 mid/side mode, automatic makeup gain or Pro-C style parity is claimed.
+
+Numeric readouts support both exact entry and dragging throughout the suite:
+click and release to type, or drag vertically to adjust (up increases, down
+decreases). Hold Shift for finer movement. Double-click resets the descriptor
+default. A drag is one undo step and one balanced host automation gesture.

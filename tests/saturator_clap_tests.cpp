@@ -145,6 +145,10 @@ using namespace openfilter::saturator;
 void metadata(const clap_plugin_factory *factory) {
     Fixture f(factory);
     CHECK(f.params->count(f.p) == parameterCount);
+    near(f.value(Compensation), 0);
+    clap_param_info compensation{};
+    CHECK(f.params->get_info(f.p, Compensation, &compensation));
+    near(compensation.default_value, 0);
     for (unsigned i = 0; i < parameterCount; ++i) {
         clap_param_info info{};
         CHECK(f.params->get_info(f.p, i, &info));
@@ -174,7 +178,8 @@ std::vector<double> automated(const clap_plugin_factory *factory, unsigned block
     timeline.add(127, band(1, Drive), 18);
     timeline.add(301, CrossoverLow, 700);
     timeline.add(613, band(1, Drive), 8, true);
-    timeline.add(799, band(1, Style), 3);
+    timeline.add(799, band(1, Style), 5);
+    timeline.add(925, band(1, Style), 4);
     timeline.add(999, CrossoverHigh, 8000);
     timeline.add(1301, Mix, 40);
     timeline.add(1703, Bypass, 1);
@@ -193,6 +198,8 @@ std::vector<double> automated(const clap_plugin_factory *factory, unsigned block
     timeline.add(5401, Compensation, 80);
     timeline.add(5501, Input, 3);
     timeline.add(6007, Output, 6);
+    timeline.add(6503, AutoLevel, 0);
+    timeline.add(7201, AutoLevel, 1);
     std::vector<double> output;
     for (unsigned at = 0; at < 8192; at += block) {
         unsigned n = std::min(block, 8192 - at);
@@ -227,15 +234,78 @@ std::vector<double> automated(const clap_plugin_factory *factory, unsigned block
 void states(const clap_plugin_factory *factory) {
     Fixture f(factory);
     auto original = f.save();
+    // Schema 1 did not contain Auto level. Preserve its exact sound on load,
+    // then retain the opt-in flag when re-saving with schema 3.
+    auto legacy = original;
+    // Prior sessions stored 100%; the new factory default must not rewrite it.
+    plugin::put64(legacy.bytes.data() + 20 + Compensation * 12, std::bit_cast<uint64_t>(100.));
+    legacy.bytes.resize(16 + legacyParameterCount * 12 + 4);
+    plugin::put32(legacy.bytes.data() + 8, 1);
+    plugin::put32(legacy.bytes.data() + 12, legacyParameterCount);
+    for (unsigned b = 0; b < 3; ++b)
+        plugin::put64(legacy.bytes.data() + 20 + band(b, Style) * 12, std::bit_cast<uint64_t>(0.));
+    plugin::put32(legacy.bytes.data() + legacy.bytes.size() - 4,
+                  plugin::checksum(legacy.bytes.data(), legacy.bytes.size() - 4));
+    CHECK(f.load(legacy));
+    near(f.value(AutoLevel), 0);
+    near(f.value(Compensation), 100);
+    f.start();
+    Engine legacyEngine;
+    auto legacyValues = defaults();
+    legacyValues[AutoLevel] = 0;
+    legacyValues[Compensation] = 100;
+    for (unsigned b = 0; b < 3; ++b)
+        legacyValues[band(b, Style)] = 0;
+    legacyEngine.prepare(48000, legacyValues);
+    std::vector<double> legacyLeft(2048), legacyRight(2048), expected(2048);
+    for (unsigned n = 0; n < legacyLeft.size(); ++n) {
+        legacyLeft[n] = .3 * std::sin(n * .31);
+        legacyRight[n] = -.4 * legacyLeft[n];
+        double l = legacyLeft[n], r = legacyRight[n];
+        legacyEngine.sample(l, r);
+        expected[n] = l;
+    }
+    Events noEvents;
+    f.process(legacyLeft, legacyRight, noEvents);
+    for (unsigned n = 0; n < expected.size(); ++n)
+        near(legacyLeft[n], expected[n], 1e-13);
+    f.stop();
+    auto migrated = f.save();
+    CHECK(plugin::get32(migrated.bytes.data() + 8) == 3);
+    Fixture recalled(factory);
+    CHECK(recalled.load(migrated));
+    near(recalled.value(AutoLevel), 0);
+    near(recalled.value(Compensation), 100);
+    // Version 2 keeps its exact old style/gain values; no default migration.
+    auto v2 = migrated;
+    plugin::put32(v2.bytes.data() + 8, 2);
+    plugin::put64(v2.bytes.data() + 20 + AutoLevel * 12, std::bit_cast<uint64_t>(1.));
+    plugin::put32(v2.bytes.data() + v2.bytes.size() - 4,
+                  plugin::checksum(v2.bytes.data(), v2.bytes.size() - 4));
+    CHECK(f.load(v2));
+    near(f.value(AutoLevel), 1);
+    near(f.value(band(0, Style)), 0);
+    near(f.value(Compensation), 100);
+    CHECK(f.load(original));
+    near(f.value(AutoLevel), 1);
+    near(f.value(band(0, Style)), 4);
+    near(f.value(Compensation), 0);
     Events e;
     e.add(0, band(1, Drive), 12);
-    e.add(0, band(1, Style), 1);
+    e.add(0, band(1, Style), 5);
     f.flush(e);
     auto changed = f.save();
     CHECK(f.load(original));
     near(f.value(band(1, Drive)), 6);
     CHECK(f.load(changed));
     near(f.value(band(1, Drive)), 12);
+    near(f.value(band(1, Style)), 5);
+    auto wrongVersion = changed;
+    plugin::put32(wrongVersion.bytes.data() + 8, 2);
+    plugin::put32(wrongVersion.bytes.data() + wrongVersion.bytes.size() - 4,
+                  plugin::checksum(wrongVersion.bytes.data(), wrongVersion.bytes.size() - 4));
+    CHECK(!f.load(wrongVersion));
+    near(f.value(band(1, Style)), 5);
     auto bad = changed;
     bad.bytes[24] ^= 0x7f;
     CHECK(!f.load(bad));
